@@ -7,6 +7,7 @@ Run headless:
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,18 +33,49 @@ MF_SPECS: list[tuple[str, str]] = [
 ]
 
 
-def _create_or_rebuild_mf(name: str) -> unreal.MaterialFunction:
+def _clear_function_graph(mf: unreal.MaterialFunction) -> None:
+    try:
+        exprs = unreal.MaterialEditingLibrary.get_function_expressions(mf)
+        for expr in list(exprs or []):
+            unreal.MaterialEditingLibrary.delete_material_expression(mf, expr)
+    except Exception as exc:
+        unreal.log_warning(f"[MF] clear graph {mf.get_name()}: {exc}")
+
+
+def _create_or_rebuild_mf(name: str, *, force: bool = False) -> unreal.MaterialFunction:
     lib.ensure_directory(lib.FUNCTION_DIR)
     path = lib.asset_path(lib.FUNCTION_DIR, name)
     if unreal.EditorAssetLibrary.does_asset_exist(path):
-        unreal.EditorAssetLibrary.delete_asset(path)
+        mf = unreal.load_asset(path)
+        if mf and not force:
+            unreal.log(f"[MF] skip existing {path}")
+            return mf
+        if mf and force:
+            _clear_function_graph(mf)
+            return mf
 
     asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
     factory = unreal.MaterialFunctionFactoryNew()
     mf = asset_tools.create_asset(name, lib.FUNCTION_DIR, unreal.MaterialFunction, factory)
-    if not mf:
-        raise RuntimeError(f"Failed to create {name}")
-    return mf
+    if mf:
+        return mf
+
+    # Fallback: duplicate a sibling MF when create_asset returns None (ghost delete / registry lag).
+    for template in ("MF_MapComposite", "MF_RealParallax", "MF_GildingOverlay"):
+        src = lib.asset_path(lib.FUNCTION_DIR, template)
+        if not unreal.EditorAssetLibrary.does_asset_exist(src):
+            continue
+        dest = f"{lib.FUNCTION_DIR}/{name}"
+        dup = unreal.EditorAssetLibrary.duplicate_asset(src, dest)
+        if dup and unreal.EditorAssetLibrary.does_asset_exist(path):
+            mf = unreal.load_asset(path)
+            if mf:
+                if force:
+                    _clear_function_graph(mf)
+                unreal.log(f"[MF] duplicated {template} -> {name}")
+                return mf
+
+    raise RuntimeError(f"Failed to create {name} at {lib.FUNCTION_DIR}")
 
 
 def _add_function_output(mf, from_expr, output_name: str, x: int, y: int) -> None:
@@ -271,26 +303,36 @@ BUILDERS = {
 }
 
 
-def build_all() -> list[str]:
+def build_all(*, force: bool = False) -> list[str]:
     unreal.log("=== Building material function library ===")
     created: list[str] = []
     for name, _desc in MF_SPECS:
-        builder = BUILDERS[name]
-        mf = _create_or_rebuild_mf(name)
-        builder(mf)
         try:
-            unreal.MaterialEditingLibrary.recompile_material_function(mf)
-        except Exception:
-            pass
-        lib.save_package(mf)
-        path = lib.asset_path(lib.FUNCTION_DIR, name)
-        created.append(path)
-        unreal.log(f"[MF] built {path}")
+            builder = BUILDERS[name]
+            mf = _create_or_rebuild_mf(name, force=force)
+            exprs = []
+            try:
+                exprs = list(unreal.MaterialEditingLibrary.get_function_expressions(mf) or [])
+            except Exception:
+                pass
+            if force or not exprs:
+                builder(mf)
+                try:
+                    unreal.MaterialEditingLibrary.recompile_material_function(mf)
+                except Exception:
+                    pass
+                lib.save_package(mf)
+            path = lib.asset_path(lib.FUNCTION_DIR, name)
+            created.append(path)
+            unreal.log(f"[MF] built {path}")
+        except Exception as exc:
+            unreal.log_warning(f"[MF] skip {name}: {exc}")
     return created
 
 
 def main() -> int:
-    paths = build_all()
+    force = "--force" in sys.argv
+    paths = build_all(force=force)
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "functions": paths,

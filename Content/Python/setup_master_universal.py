@@ -1,16 +1,20 @@
 """Build M_Master_Toon_Universal — the 'reach for every scene' master.
 
-Hybrid texture/procedural, triplanar, Nikki dreamy glow, constellation ramps,
+Hybrid texture/procedural, dual texture layers (A/B) with per-layer maps and parallax,
+temporal boil/smear UV stylization, triplanar, Nikki dreamy glow, celestial ramps,
 curvature gold leaf, fairy-dust highlight motifs, dreamy shadow tinting,
 shadow-garden flowers, and metallic ORM blend — all defaulting to neutral (0).
 
 Run (editor open):
   py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_master_universal.py"
+  py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_master_universal.py" --force
 
 Then instances:
   py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_universal_instances.py"
 """
 from __future__ import annotations
+
+import sys
 
 import unreal
 import material_lib as lib
@@ -88,16 +92,166 @@ def style_peak(m, style, target: float, tag: str, x, y):
     return inv
 
 
+def scalar_switch(m, name, group, x, y, default=False):
+    return static_switch(m, name, group, x, y, default)
+
+
+def apply_temporal_uv(m, uv, temporal_str, wind, noise_scale, smear, boil, tag: str):
+    """World-space boil/smear offset on UVs (strength 0 = passthrough)."""
+    wxy = world_xy(m, -2400, 6200)
+    t = lib.create_expression(m, unreal.MaterialExpressionTime, -2400, 6320)
+    wind_t = lib.create_expression(m, unreal.MaterialExpressionMultiply, -2240, 6320)
+    wire(f"{tag}_wtA", t, wind_t, "A")
+    wire(f"{tag}_wtB", wind, wind_t, "B")
+    nscale = lib.create_expression(m, unreal.MaterialExpressionMultiply, -2240, 6200)
+    wire(f"{tag}_nsA", wxy, nscale, "A")
+    wire(f"{tag}_nsB", noise_scale, nscale, "B")
+    phase = lib.create_expression(m, unreal.MaterialExpressionAdd, -2080, 6260)
+    wire(f"{tag}_phA", nscale, phase, "A")
+    wire(f"{tag}_phB", wind_t, phase, "B")
+    s = lib.create_expression(m, unreal.MaterialExpressionSine, -1920, 6260)
+    s.set_editor_property("period", 1.0)
+    wire(f"{tag}_sin", phase, s, "Input")
+    boil_off = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6260)
+    wire(f"{tag}_boilA", s, boil_off, "A")
+    wire(f"{tag}_boilB", boil, boil_off, "B")
+    boil_uv = lib.create_expression(m, unreal.MaterialExpressionAdd, -1600, 6220)
+    wire(f"{tag}_buvA", uv, boil_uv, "A")
+    wire(f"{tag}_buvB", boil_off, boil_uv, "B")
+    c = lib.create_expression(m, unreal.MaterialExpressionConstant, -1920, 6380)
+    c.set_editor_property("r", 0.017)
+    smear_off = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6380)
+    wire(f"{tag}_smA", s, smear_off, "A")
+    wire(f"{tag}_smB", smear, smear_off, "B")
+    smear_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1600, 6380)
+    wire(f"{tag}_smM", c, smear_mul, "A")
+    wire(f"{tag}_smO", smear_off, smear_mul, "B")
+    smear_uv = lib.create_expression(m, unreal.MaterialExpressionAdd, -1440, 6300)
+    wire(f"{tag}_suvA", boil_uv, smear_uv, "A")
+    wire(f"{tag}_suvB", smear_mul, smear_uv, "B")
+    out = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, -1280, 6240)
+    wire(f"{tag}_outA", uv, out, "A")
+    wire(f"{tag}_outB", smear_uv, out, "B")
+    wire(f"{tag}_out_alpha", temporal_str, out, "Alpha")
+    return out
+
+
+def parallax_uv_offset(m, uv, height_tex, scale, strength, tag: str):
+    """Height-map POM proxy: offset UV before map samples."""
+    h_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -2400, 6600)
+    wire(f"{tag}_h_obj", height_tex, h_s, "Tex", "TextureObject")
+    wire(f"{tag}_h_uv", uv, h_s, "UVs", "Coordinates")
+    h_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -2240, 6600)
+    h_r.set_editor_property("r", True)
+    h_r.set_editor_property("g", False)
+    h_r.set_editor_property("b", False)
+    h_r.set_editor_property("a", False)
+    wire(f"{tag}_h_r", h_s, h_r, "")
+    view = lib.create_expression(m, unreal.MaterialExpressionCameraVectorWS, -2400, 6720)
+    view_xy = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -2240, 6720)
+    view_xy.set_editor_property("r", True)
+    view_xy.set_editor_property("g", True)
+    view_xy.set_editor_property("b", False)
+    view_xy.set_editor_property("a", False)
+    wire(f"{tag}_vxy", view, view_xy, "")
+    pom_s = lib.create_expression(m, unreal.MaterialExpressionMultiply, -2080, 6660)
+    wire(f"{tag}_psA", h_r, pom_s, "A")
+    wire(f"{tag}_psB", scale, pom_s, "B")
+    pom_s2 = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1920, 6660)
+    wire(f"{tag}_ps2A", pom_s, pom_s2, "A")
+    wire(f"{tag}_ps2B", strength, pom_s2, "B")
+    off = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6660)
+    wire(f"{tag}_offA", pom_s2, off, "A")
+    wire(f"{tag}_offB", view_xy, off, "B")
+    out = lib.create_expression(m, unreal.MaterialExpressionAdd, -1600, 6620)
+    wire(f"{tag}_pA", uv, out, "A")
+    wire(f"{tag}_pB", off, out, "B")
+    return out
+
+
+def sample_maps_uv(
+    m, uv, albedo, normal, orm, tri_tiling, tag: str, y0: int,
+):
+    """UV-path texture samples + triplanar switch."""
+    alb_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0)
+    wire(f"{tag}_alb_obj", albedo, alb_s, "Tex", "TextureObject")
+    wire(f"{tag}_alb_uv", uv, alb_s, "UVs", "Coordinates")
+    nrm_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0 + 160)
+    wire(f"{tag}_nrm_obj", normal, nrm_s, "Tex", "TextureObject")
+    wire(f"{tag}_nrm_uv", uv, nrm_s, "UVs", "Coordinates")
+    orm_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0 + 320)
+    wire(f"{tag}_orm_obj", orm, orm_s, "Tex", "TextureObject")
+    wire(f"{tag}_orm_uv", uv, orm_s, "UVs", "Coordinates")
+
+    waT = mf_call(m, WAT, -1240, y0)
+    waN = mf_call(m, WAN, -1240, y0 + 160)
+    waR = mf_call(m, WAT, -1240, y0 + 320)
+    for ttag, fn, tobj in (
+        (f"{tag}_triA", waT, albedo),
+        (f"{tag}_triN", waN, normal),
+        (f"{tag}_triR", waR, orm),
+    ):
+        if fn:
+            wire(f"{ttag}_obj", tobj, fn, "TextureObject (T2d)", "TextureObject", "Tex")
+            wire(f"{ttag}_size", tri_tiling, fn, "Texture Size", "WorldSize", "Size")
+
+    def tri_sw(tt, uv_e, tri_e, yy):
+        sw = static_switch(m, "bTriplanar", "Triplanar", -1060, yy)
+        wire(f"{tt}_true", tri_e or uv_e, sw, "A", "True")
+        wire(f"{tt}_false", uv_e, sw, "B", "False")
+        return sw
+
+    alb = tri_sw(f"{tag}_swA", alb_s, waT, y0)
+    nrm = tri_sw(f"{tag}_swN", nrm_s, waN, y0 + 160)
+    orm_out = tri_sw(f"{tag}_swR", orm_s, waR, y0 + 320)
+    return alb, nrm, orm_out
+
+
+def lerp3(m, a, b, alpha, tag: str, x: int, y: int):
+    n = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, x, y)
+    wire(f"{tag}_A", a, n, "A")
+    wire(f"{tag}_B", b, n, "B")
+    wire(f"{tag}_alpha", alpha, n, "Alpha")
+    return n
+
+
+def _clear_material_graph(material) -> None:
+    try:
+        exprs = unreal.MaterialEditingLibrary.get_material_expressions(material)
+        for expr in list(exprs or []):
+            unreal.MaterialEditingLibrary.delete_material_expression(material, expr)
+    except Exception as exc:
+        unreal.log_warning(f"[Universal] clear graph: {exc}")
+
+
 def build():
     lib.ensure_directory(lib.MASTER_DIR)
     path = lib.asset_path(lib.MASTER_DIR, MASTER_NAME)
-    if unreal.EditorAssetLibrary.does_asset_exist(path):
-        unreal.EditorAssetLibrary.delete_asset(path)
+    exists = unreal.EditorAssetLibrary.does_asset_exist(path)
+    force = "--force" in sys.argv
+    if exists and not force:
+        unreal.log_warning(
+            f"[Universal] {path} exists — skipping rebuild. "
+            "Delete in Content Browser or run with --force."
+        )
+        try:
+            import setup_universal_instances as inst
+            inst.build_instances()
+        except Exception as exc:
+            unreal.log_warning(f"[Universal] instances: {exc}")
+        return path
 
-    at = unreal.AssetToolsHelpers.get_asset_tools()
-    m = at.create_asset(MASTER_NAME, lib.MASTER_DIR, unreal.Material, unreal.MaterialFactoryNew())
+    m = None
+    if exists and force:
+        m = unreal.load_asset(path)
+        if m:
+            _clear_material_graph(m)
+            unreal.log(f"[Universal] rebuilding in-place {path}")
     if not m:
-        raise RuntimeError("create_asset failed")
+        at = unreal.AssetToolsHelpers.get_asset_tools()
+        m = at.create_asset(MASTER_NAME, lib.MASTER_DIR, unreal.Material, unreal.MaterialFactoryNew())
+    if not m:
+        raise RuntimeError("create_asset failed — close material tabs and retry")
     m.set_editor_property("material_domain", unreal.MaterialDomain.MD_SURFACE)
     m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_OPAQUE)
     lib.try_set_editor_property(m, "bUsesSubstrate", True)
@@ -109,49 +263,76 @@ def build():
     roughness_s = lib.scalar_param(m, "Roughness", "Surface", 0.70, -2100, 140)
     metallic_s = lib.scalar_param(m, "Metallic", "Surface", 0.0, -2100, 240)
     tri_tiling = lib.scalar_param(m, "TriplanarTiling", "Triplanar", 256.0, -2100, 340)
-    albedo = tex_object(m, "Albedo", -2100, 480)
-    normal = tex_object(m, "NormalMap", -2100, 640)
-    orm = tex_object(m, "ORM", -2100, 800)
 
-    # ---- UV ----
+    # ---- Layer A (primary) texture set ----
+    albedo = tex_object(m, "Albedo", -2100, 480, "LayerA")
+    normal = tex_object(m, "NormalMap", -2100, 640, "LayerA")
+    orm = tex_object(m, "ORM", -2100, 800, "LayerA")
+    height_a = tex_object(m, "HeightMap", -2100, 960, "LayerA")
+    layer_a_weight = lib.scalar_param(m, "LayerA_TextureWeight", "LayerA", 1.0, -2100, 1080)
+    layer_a_parallax = lib.scalar_param(m, "LayerA_ParallaxScale", "LayerA", 1.0, -2100, 1180)
+
+    # ---- Layer B (overlay) texture set ----
+    alb_b = tex_object(m, "LayerB_Albedo", -2100, 1280, "LayerB")
+    nrm_b = tex_object(m, "LayerB_NormalMap", -2100, 1440, "LayerB")
+    orm_b = tex_object(m, "LayerB_ORM", -2100, 1600, "LayerB")
+    height_b = tex_object(m, "LayerB_HeightMap", -2100, 1760, "LayerB")
+    layer_b_weight = lib.scalar_param(m, "LayerB_TextureWeight", "LayerB", 1.0, -2100, 1880)
+    layer_b_parallax = lib.scalar_param(m, "LayerB_ParallaxScale", "LayerB", 1.0, -2100, 1980)
+    layer_blend = lib.scalar_param(m, "LayerBlend", "Layers", 0.0, -2100, 2100)
+
+    # ---- Parallax (shared + per-layer) ----
+    parallax_scale = lib.scalar_param(m, "ParallaxScale", "Parallax", 0.04, -2100, 2320)
+    parallax_str = lib.scalar_param(m, "ParallaxStrength", "Parallax", 0.0, -2100, 2420)
+    parallax_steps = lib.scalar_param(m, "ParallaxSteps", "Parallax", 8.0, -2100, 2520)
+
+    # ---- Temporal stylization ----
+    temporal_str = lib.scalar_param(m, "TemporalStrength", "Temporal", 0.0, -2100, 2740)
+    wind_speed = lib.scalar_param(m, "WindSpeed", "Temporal", 0.12, -2100, 2840)
+    temporal_noise = lib.scalar_param(m, "NoiseScale", "Temporal", 1.5, -2100, 2940)
+    smear_str = lib.scalar_param(m, "SmearStrength", "Temporal", 0.08, -2100, 3040)
+    boil_int = lib.scalar_param(m, "BoilIntensity", "Temporal", 0.05, -2100, 3140)
+
+    # ---- UV + temporal ----
     tc = lib.create_expression(m, unreal.MaterialExpressionTextureCoordinate, -1800, 460)
     uv = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1620, 460)
     wire("uv_tc", tc, uv, "A")
     wire("uv_scale", uv_scale, uv, "B")
+    uv_time = apply_temporal_uv(
+        m, uv, temporal_str, wind_speed, temporal_noise, smear_str, boil_int, "temporal"
+    )
 
-    def uv_sample(tag, tobj, yy):
-        s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, yy)
-        wire(f"{tag}_obj", tobj, s, "Tex", "TextureObject")
-        wire(f"{tag}_uv", uv, s, "UVs", "Coordinates")
-        return s
+    # Parallax per layer (strength gated)
+    pom_a = parallax_uv_offset(m, uv_time, height_a, parallax_scale, layer_a_parallax, "pomA")
+    pom_b = parallax_uv_offset(m, uv_time, height_b, parallax_scale, layer_b_parallax, "pomB")
+    uv_a = lerp3(m, uv_time, pom_a, parallax_str, "uv_pomA", -1480, 480)
+    uv_b = lerp3(m, uv_time, pom_b, parallax_str, "uv_pomB", -1480, 1280)
 
-    alb_uv = uv_sample("alb", albedo, 480)
-    nrm_uv = uv_sample("nrm", normal, 640)
-    orm_uv = uv_sample("orm", orm, 800)
+    alb_a, nrm_a, orm_a = sample_maps_uv(m, uv_a, albedo, normal, orm, tri_tiling, "layA", 480)
+    alb_b_s, nrm_b_s, orm_b_s = sample_maps_uv(m, uv_b, alb_b, nrm_b, orm_b, tri_tiling, "layB", 1280)
 
-    waT = mf_call(m, WAT, -1240, 480)
-    waN = mf_call(m, WAN, -1240, 640)
-    waR = mf_call(m, WAT, -1240, 800)
-    for tag, fn, tobj in (("triA", waT, albedo), ("triN", waN, normal), ("triR", waR, orm)):
-        if fn:
-            wire(f"{tag}_obj", tobj, fn, "TextureObject (T2d)", "TextureObject", "Tex")
-            wire(f"{tag}_size", tri_tiling, fn, "Texture Size", "WorldSize", "Size")
+    alb_blend = lerp3(m, alb_a, alb_b_s, layer_blend, "alb_lerp", -680, 520)
+    nrm_blend = lerp3(m, nrm_a, nrm_b_s, layer_blend, "nrm_lerp", -680, 680)
+    orm_blend = lerp3(m, orm_a, orm_b_s, layer_blend, "orm_lerp", -680, 840)
 
-    def tri_switch(tag, uv_e, tri_e, yy):
-        sw = static_switch(m, "bTriplanar", "Triplanar", -1060, yy)
-        wire(f"{tag}_true", tri_e or uv_e, sw, "A", "True")
-        wire(f"{tag}_false", uv_e, sw, "B", "False")
-        return sw
+    alb = alb_blend
+    nrm_s = nrm_blend
+    orm_s = orm_blend
 
-    alb = tri_switch("swA", alb_uv, waT, 480)
-    nrm_s = tri_switch("swN", nrm_uv, waN, 640)
-    orm_s = tri_switch("swR", orm_uv, waR, 800)
+    # Per-layer texture weights into hybrid
+    tex_a_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, -360, 120)
+    wire("tawA", tex_weight, tex_a_w, "A")
+    wire("tawB", layer_a_weight, tex_a_w, "B")
+    tex_b_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, -360, 240)
+    wire("tbwA", tex_weight, tex_b_w, "A")
+    wire("tbwB", layer_b_weight, tex_b_w, "B")
+    tex_eff = lerp3(m, tex_a_w, tex_b_w, layer_blend, "tex_eff", -200, 180)
 
     # hybrid base color / roughness / normal / metallic
-    color = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, -200, 120)
+    color = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, -40, 120)
     wire("color_A", base_tint, color, "A")
     wire("color_B", alb, color, "B")
-    wire("color_alpha", tex_weight, color, "Alpha")
+    wire("color_alpha", tex_eff, color, "Alpha")
 
     org = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -200, 800)
     org.set_editor_property("r", False)
@@ -162,7 +343,7 @@ def build():
     rough = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 20, 800)
     wire("rough_A", roughness_s, rough, "A")
     wire("rough_B", org, rough, "B")
-    wire("rough_alpha", tex_weight, rough, "Alpha")
+    wire("rough_alpha", tex_eff, rough, "Alpha")
 
     orm_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -200, 960)
     orm_r.set_editor_property("r", True)
@@ -173,14 +354,23 @@ def build():
     metal = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 20, 960)
     wire("metal_A", metallic_s, metal, "A")
     wire("metal_B", orm_r, metal, "B")
-    wire("metal_alpha", tex_weight, metal, "Alpha")
+    wire("metal_alpha", tex_eff, metal, "Alpha")
 
     flat_n = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, -200, 640)
     flat_n.set_editor_property("constant", unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
     nrm = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 20, 640)
     wire("nrm_A", flat_n, nrm, "A")
     wire("nrm_B", nrm_s, nrm, "B")
-    wire("nrm_alpha", tex_weight, nrm, "Alpha")
+    wire("nrm_alpha", tex_eff, nrm, "Alpha")
+
+    # temporal color boil (subtle impressionist shimmer on final tint path)
+    temp_col = lib.create_expression(m, unreal.MaterialExpressionMultiply, 120, 40)
+    wire("tcA", color, temp_col, "A")
+    t_mod = lib.create_expression(m, unreal.MaterialExpressionAdd, 0, 120)
+    wire("tc_modA", const1(m, -40, 120, 1.0), t_mod, "A")
+    wire("tc_modB", temporal_str, t_mod, "B")
+    wire("tcB", t_mod, temp_col, "B")
+    color = temp_col
 
     # ---- Nikki dreamy layer ----
     rim_color = lib.vector_param(m, "RimColor", "Nikki", (0.70, 0.85, 1.00, 1.0), -2100, 1040)
@@ -204,43 +394,50 @@ def build():
     sheen_tint = lib.vector_param(m, "SheenTint", "Nikki", (1.00, 1.00, 1.00, 1.0), -2100, 2840)
     sheen_power = lib.scalar_param(m, "SheenPower", "Nikki", 6.0, -2100, 2940)
 
-    # ---- Constellation ramps ----
-    const_low = lib.vector_param(m, "ConstellationRampLow", "Constellation", (0.10, 0.12, 0.28, 1.0), -2100, 3060)
-    const_mid = lib.vector_param(m, "ConstellationRampMid", "Constellation", (0.40, 0.62, 0.95, 1.0), -2100, 3160)
-    const_high = lib.vector_param(m, "ConstellationRampHigh", "Constellation", (0.95, 0.88, 1.00, 1.0), -2100, 3260)
-    const_str = lib.scalar_param(m, "ConstellationStrength", "Constellation", 0.0, -2100, 3360)
-    const_scale = lib.scalar_param(m, "ConstellationScale", "Constellation", 1.8, -2100, 3460)
-    const_phase = lib.scalar_param(m, "ConstellationPhase", "Constellation", 0.0, -2100, 3560)
+    # ---- Celestial ramps (dark stars / nebula mid / galaxy highlight) ----
+    const_low = lib.vector_param(m, "ConstellationRampLow", "Celestial", (0.02, 0.03, 0.10, 1.0), -2100, 3060)
+    const_mid = lib.vector_param(m, "ConstellationRampMid", "Celestial", (0.45, 0.22, 0.55, 1.0), -2100, 3160)
+    const_high = lib.vector_param(m, "ConstellationRampHigh", "Celestial", (0.85, 0.72, 1.00, 1.0), -2100, 3260)
+    const_str = lib.scalar_param(m, "ConstellationStrength", "Celestial", 0.0, -2100, 3360)
+    const_scale = lib.scalar_param(m, "ConstellationScale", "Celestial", 1.8, -2100, 3460)
+    const_phase = lib.scalar_param(m, "ConstellationPhase", "Celestial", 0.0, -2100, 3560)
+    star_int = lib.scalar_param(m, "CelestialStarIntensity", "Celestial", 1.0, -2100, 3660)
+    star_twinkle = lib.scalar_param(m, "CelestialTwinkle", "Celestial", 0.0, -2100, 3760)
+    nebula_str = lib.scalar_param(m, "CelestialNebulaStrength", "Celestial", 0.65, -2100, 3860)
+    nebula_scale = lib.scalar_param(m, "CelestialNebulaScale", "Celestial", 0.35, -2100, 3960)
+    galaxy_str = lib.scalar_param(m, "CelestialGalaxyStrength", "Celestial", 0.45, -2100, 4060)
+    galaxy_scale = lib.scalar_param(m, "CelestialGalaxyScale", "Celestial", 0.12, -2100, 4160)
+    galaxy_arms = lib.scalar_param(m, "CelestialGalaxyArms", "Celestial", 3.0, -2100, 4260)
 
     # ---- Gold leaf on curvature ----
-    gild_str = lib.scalar_param(m, "GildingStrength", "Gilding", 0.0, -2100, 3680)
-    gold_tint = lib.vector_param(m, "GoldTint", "Gilding", (0.92, 0.72, 0.28, 1.0), -2100, 3780)
-    gold_rough = lib.scalar_param(m, "GoldRoughness", "Gilding", 0.18, -2100, 3880)
-    gold_emis = lib.vector_param(m, "GoldEmissive", "Gilding", (0.35, 0.25, 0.05, 1.0), -2100, 3980)
-    curve_sens = lib.scalar_param(m, "CurvatureSensitivity", "Gilding", 2.5, -2100, 4080)
+    gild_str = lib.scalar_param(m, "GildingStrength", "Gilding", 0.0, -2100, 4380)
+    gold_tint = lib.vector_param(m, "GoldTint", "Gilding", (0.92, 0.72, 0.28, 1.0), -2100, 4480)
+    gold_rough = lib.scalar_param(m, "GoldRoughness", "Gilding", 0.18, -2100, 4580)
+    gold_emis = lib.vector_param(m, "GoldEmissive", "Gilding", (0.35, 0.25, 0.05, 1.0), -2100, 4680)
+    curve_sens = lib.scalar_param(m, "CurvatureSensitivity", "Gilding", 2.5, -2100, 4780)
 
     # ---- Dreamy shadows + shadow garden ----
-    shadow_tint = lib.vector_param(m, "ShadowDreamTint", "ShadowDream", (0.48, 0.42, 0.62, 1.0), -2100, 4200)
-    shadow_str = lib.scalar_param(m, "ShadowDreamStrength", "ShadowDream", 0.0, -2100, 4300)
-    shadow_soft = lib.scalar_param(m, "ShadowSoftness", "ShadowDream", 0.5, -2100, 4400)
-    flower_str = lib.scalar_param(m, "ShadowFlowerStrength", "ShadowGarden", 0.0, -2100, 4520)
-    flower_scale = lib.scalar_param(m, "ShadowFlowerScale", "ShadowGarden", 5.0, -2100, 4620)
-    flower_color = lib.vector_param(m, "ShadowFlowerColor", "ShadowGarden", (0.92, 0.45, 0.72, 1.0), -2100, 4720)
+    shadow_tint = lib.vector_param(m, "ShadowDreamTint", "ShadowDream", (0.48, 0.42, 0.62, 1.0), -2100, 4900)
+    shadow_str = lib.scalar_param(m, "ShadowDreamStrength", "ShadowDream", 0.0, -2100, 5000)
+    shadow_soft = lib.scalar_param(m, "ShadowSoftness", "ShadowDream", 0.5, -2100, 5100)
+    flower_str = lib.scalar_param(m, "ShadowFlowerStrength", "ShadowGarden", 0.0, -2100, 5220)
+    flower_scale = lib.scalar_param(m, "ShadowFlowerScale", "ShadowGarden", 5.0, -2100, 5320)
+    flower_color = lib.vector_param(m, "ShadowFlowerColor", "ShadowGarden", (0.92, 0.45, 0.72, 1.0), -2100, 5420)
 
     # ---- Fairy dust motifs (0=off, 1=heart, 2=star, 3=flower, 4=moon) ----
-    fairy_style = lib.scalar_param(m, "FairyMotifStyle", "FairyDust", 0.0, -2100, 4840)
-    fairy_int = lib.scalar_param(m, "FairyDustIntensity", "FairyDust", 0.0, -2100, 4940)
-    fairy_scale = lib.scalar_param(m, "FairyDustScale", "FairyDust", 14.0, -2100, 5040)
-    fairy_color = lib.vector_param(m, "FairyDustColor", "FairyDust", (1.0, 0.92, 0.98, 1.0), -2100, 5140)
-    fairy_thresh = lib.scalar_param(m, "FairyHighlightThreshold", "FairyDust", 0.35, -2100, 5240)
-    fairy_glyph = lib.texture_param(m, "FairyGlyphMask", "FairyDust", -2100, 5340)
+    fairy_style = lib.scalar_param(m, "FairyMotifStyle", "FairyDust", 0.0, -2100, 5540)
+    fairy_int = lib.scalar_param(m, "FairyDustIntensity", "FairyDust", 0.0, -2100, 5640)
+    fairy_scale = lib.scalar_param(m, "FairyDustScale", "FairyDust", 14.0, -2100, 5740)
+    fairy_color = lib.vector_param(m, "FairyDustColor", "FairyDust", (1.0, 0.92, 0.98, 1.0), -2100, 5840)
+    fairy_thresh = lib.scalar_param(m, "FairyHighlightThreshold", "FairyDust", 0.35, -2100, 5940)
+    fairy_glyph = lib.texture_param(m, "FairyGlyphMask", "FairyDust", -2100, 6040)
 
     color_nikki = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 220, 120)
     wire("nikki_base_A", color, color_nikki, "A")
     wire("nikki_base_B", dream_tint, color_nikki, "B")
     wire("nikki_base_alpha", pastel, color_nikki, "Alpha")
 
-    # constellation star field
+    # ---- celestial: tier 1 stars on dark void, tier 2 nebula wash, tier 3 galaxy core ----
     wxy = world_xy(m, 220, 300)
     const_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 400, 300)
     wire("const_mulA", wxy, const_mul, "A")
@@ -260,19 +457,105 @@ def build():
     wire("star_inv", star_dist, star_inv, "Input")
     star_pow = lib.create_expression(m, unreal.MaterialExpressionPower, 1240, 300)
     wire("star_powA", star_inv, star_pow, "Base")
-    two = const1(m, 1080, 420, 2.0)
-    wire("star_powB", two, star_pow, "Exp")
-    ramp_a = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 1420, 260)
-    wire("ramp_aA", const_low, ramp_a, "A")
-    wire("ramp_aB", const_mid, ramp_a, "B")
-    wire("ramp_a_alpha", star_pow, ramp_a, "Alpha")
-    ramp_b = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 1600, 260)
-    wire("ramp_bA", ramp_a, ramp_b, "A")
-    wire("ramp_bB", const_high, ramp_b, "B")
-    wire("ramp_b_alpha", star_pow, ramp_b, "Alpha")
+    three = const1(m, 1080, 420, 3.5)
+    wire("star_powB", three, star_pow, "Exp")
+    time_n = lib.create_expression(m, unreal.MaterialExpressionTime, 720, 520)
+    twinkle_ph = lib.create_expression(m, unreal.MaterialExpressionMultiply, 880, 520)
+    wire("twinkle_t", time_n, twinkle_ph, "A")
+    wire("twinkle_s", star_twinkle, twinkle_ph, "B")
+    twinkle_sin = lib.create_expression(m, unreal.MaterialExpressionSine, 1040, 520)
+    twinkle_sin.set_editor_property("period", 1.0)
+    wire("twinkle_sin", twinkle_ph, twinkle_sin, "Input")
+    twinkle = lib.create_expression(m, unreal.MaterialExpressionMultiply, 1200, 400)
+    wire("twinkleA", star_pow, twinkle, "A")
+    twinkle_mod = lib.create_expression(m, unreal.MaterialExpressionAdd, 1040, 620)
+    wire("tw_modA", twinkle_sin, twinkle_mod, "A")
+    wire("tw_modB", const1(m, 880, 620, 0.65), twinkle_mod, "B")
+    wire("twinkleB", twinkle_mod, twinkle, "B")
+    star_pts = lib.create_expression(m, unreal.MaterialExpressionMultiply, 1360, 360)
+    wire("star_ptsA", twinkle, star_pts, "A")
+    wire("star_ptsB", star_int, star_pts, "B")
+    star_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 1540, 280)
+    wire("star_cA", const_low, star_col, "A")
+    wire("star_cB", const_high, star_col, "B")
+    wire("star_c_alpha", star_pts, star_col, "Alpha")
+
+    # nebula: soft multi-frequency sine clouds in world XY
+    neb_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 400, 680)
+    wire("neb_mulA", wxy, neb_mul, "A")
+    wire("neb_mulB", nebula_scale, neb_mul, "B")
+    neb_sx = lib.create_expression(m, unreal.MaterialExpressionSine, 560, 640)
+    neb_sx.set_editor_property("period", 1.0)
+    wire("neb_sx", neb_mul, neb_sx, "Input")
+    neb_sy = lib.create_expression(m, unreal.MaterialExpressionSine, 560, 760)
+    neb_sy.set_editor_property("period", 1.0)
+    neb_mul2 = lib.create_expression(m, unreal.MaterialExpressionMultiply, 400, 820)
+    wire("neb2A", neb_mul, neb_mul2, "A")
+    wire("neb2B", const1(m, 400, 900, 1.73), neb_mul2, "B")
+    wire("neb_sy", neb_mul2, neb_sy, "Input")
+    neb_prod = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 700)
+    wire("neb_pA", neb_sx, neb_prod, "A")
+    wire("neb_pB", neb_sy, neb_prod, "B")
+    neb_abs = lib.create_expression(m, unreal.MaterialExpressionAbs, 880, 700)
+    wire("neb_abs", neb_prod, neb_abs, "Input")
+    neb_soft = lib.create_expression(m, unreal.MaterialExpressionPower, 1040, 700)
+    wire("neb_softA", neb_abs, neb_soft, "Base")
+    wire("neb_softB", const1(m, 880, 800, 0.55), neb_soft, "Exp")
+    neb_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, 1200, 700)
+    wire("neb_wA", neb_soft, neb_w, "A")
+    wire("neb_wB", nebula_str, neb_w, "B")
+    nebula_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 1380, 520)
+    wire("neb_cA", star_col, nebula_col, "A")
+    wire("neb_cB", const_mid, nebula_col, "B")
+    wire("neb_c_alpha", neb_w, nebula_col, "Alpha")
+
+    # galaxy: radial core + spiral arm proxy
+    gal_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 400, 980)
+    wire("gal_mulA", wxy, gal_mul, "A")
+    wire("gal_mulB", galaxy_scale, gal_mul, "B")
+    gal_len = lib.create_expression(m, unreal.MaterialExpressionLength, 560, 980)
+    wire("gal_len", gal_mul, gal_len, "Input")
+    gal_fall = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 720, 980)
+    wire("gal_fall_in", gal_len, gal_fall, "Input")
+    gal_rad = lib.create_expression(m, unreal.MaterialExpressionPower, 880, 980)
+    wire("gal_radA", gal_fall, gal_rad, "Base")
+    wire("gal_radB", const1(m, 720, 1080, 1.8), gal_rad, "Exp")
+    gal_x = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 560, 1100)
+    gal_x.set_editor_property("r", True)
+    gal_x.set_editor_property("g", False)
+    gal_x.set_editor_property("b", False)
+    gal_x.set_editor_property("a", False)
+    wire("gal_x", gal_mul, gal_x, "")
+    gal_y = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 560, 1180)
+    gal_y.set_editor_property("r", False)
+    gal_y.set_editor_property("g", True)
+    gal_y.set_editor_property("b", False)
+    gal_y.set_editor_property("a", False)
+    wire("gal_y", gal_mul, gal_y, "")
+    gal_spiral = lib.create_expression(m, unreal.MaterialExpressionSine, 720, 1140)
+    gal_spiral.set_editor_property("period", 1.0)
+    gal_ang = lib.create_expression(m, unreal.MaterialExpressionMultiply, 560, 1260)
+    wire("gal_angA", gal_x, gal_ang, "A")
+    wire("gal_angB", galaxy_arms, gal_ang, "B")
+    gal_phase = lib.create_expression(m, unreal.MaterialExpressionAdd, 720, 1220)
+    wire("gal_phA", gal_ang, gal_phase, "A")
+    wire("gal_phB", gal_len, gal_phase, "B")
+    wire("gal_spiral_in", gal_phase, gal_spiral, "Input")
+    gal_arm = lib.create_expression(m, unreal.MaterialExpressionAbs, 880, 1140)
+    wire("gal_arm", gal_spiral, gal_arm, "Input")
+    gal_core = lib.create_expression(m, unreal.MaterialExpressionMultiply, 1040, 1060)
+    wire("gal_cA", gal_rad, gal_core, "A")
+    wire("gal_cB", gal_arm, gal_core, "B")
+    gal_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, 1200, 1060)
+    wire("gal_wA", gal_core, gal_w, "A")
+    wire("gal_wB", galaxy_str, gal_w, "B")
+    celestial = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 1380, 900)
+    wire("cel_A", nebula_col, celestial, "A")
+    wire("cel_B", const_high, celestial, "B")
+    wire("cel_alpha", gal_w, celestial, "Alpha")
     color_stars = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 1780, 120)
     wire("stars_A", color_nikki, color_stars, "A")
-    wire("stars_B", ramp_b, color_stars, "B")
+    wire("stars_B", celestial, color_stars, "B")
     wire("stars_alpha", const_str, color_stars, "Alpha")
 
     # curvature gold leaf
@@ -558,7 +841,7 @@ def build():
     wire("bloom_mul_A", emissive_raw, emissive, "A")
     wire("bloom_mul_B", bloom_m, emissive, "B")
 
-    profiles = lib.create_toon_profiles(["TP_Default", "TP_Gold"])
+    profiles = lib.create_toon_profiles(["TP_Default", "TP_Gold", "TP_Stone"])
     toon = lib.create_expression(m, unreal.MaterialExpressionSubstrateToonBSDF, 4040, 480)
     lib.try_set_editor_property(toon, "toon_profile", profiles.get("TP_Default"))
     WIRES["toon_basecolor"] = lib.connect_toon_pin(toon, final_color, ("BaseColor", "DiffuseColor"))

@@ -1,0 +1,140 @@
+"""Portfolio template level + material triad showcase + PP stack.
+
+Builds /Game/EnvSandbox/_Template/L_Template with:
+  - Lighting rig, unbound PPV (manual exposure)
+  - M_PP_ToonOutline + M_PP_StorybookVines blendables
+  - Row of spheres showcasing MI_Universal_* presets
+
+Run via run_wild_session.py or:
+  py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_template_showcase.py"
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import unreal
+
+import material_lib as mlib
+
+LEVEL = "/Game/EnvSandbox/_Template/L_Template"
+REPORT = Path(__file__).resolve().parents[2] / "Saved" / "Audit" / "template_showcase.json"
+
+CUBE = "/Engine/BasicShapes/Cube.Cube"
+SPHERE = "/Engine/BasicShapes/Sphere.Sphere"
+
+PP_OUTLINE = "/Game/EnvSandbox/Materials/PostProcess/M_PP_ToonOutline.M_PP_ToonOutline"
+PP_VINES = "/Game/EnvSandbox/Materials/PostProcess/M_PP_StorybookVines.M_PP_StorybookVines"
+
+SHOWCASE: list[tuple[str, str, tuple[float, float, float]]] = [
+    ("MI_Universal_Default", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_Default", (-400, 0, 100)),
+    ("MI_Universal_DreamyPastel", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_DreamyPastel", (-200, 0, 100)),
+    ("MI_Universal_Constellation", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_Constellation", (0, 0, 100)),
+    ("MI_Universal_CelestialNebula", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_CelestialNebula", (200, 0, 100)),
+    ("MI_Universal_GoldLeaf", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_GoldLeaf", (400, 0, 100)),
+    ("MI_Universal_FairyHearts", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_FairyHearts", (600, 0, 100)),
+    ("MI_Universal_FairyGarden", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_FairyGarden", (800, 0, 100)),
+    ("MI_Universal_TemporalInk", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_TemporalInk", (1000, 0, 100)),
+    ("MI_Universal_LayeredStone", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_LayeredStone", (1200, 0, 100)),
+    ("MI_Universal_MoonlitMetal", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_MoonlitMetal", (1400, 0, 100)),
+]
+
+
+def _ensure_level() -> None:
+    les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    if not unreal.EditorAssetLibrary.does_asset_exist(f"{LEVEL}.L_Template"):
+        unreal.EditorAssetLibrary.make_directory("/Game/EnvSandbox/_Template")
+        les.new_level(LEVEL)
+    else:
+        les.load_level(LEVEL)
+
+    def spawn(cls, loc=(0, 0, 0), rot=(0, 0, 0)):
+        try:
+            return eas.spawn_actor_from_class(cls, unreal.Vector(*loc), unreal.Rotator(*rot))
+        except Exception as exc:
+            unreal.log_warning(f"[Showcase] spawn {cls}: {exc}")
+            return None
+
+    if not eas.get_all_level_actors():
+        spawn(unreal.DirectionalLight, (0, 0, 800), (-45, 30, 0))
+        spawn(unreal.SkyLight, (0, 0, 400))
+        spawn(unreal.SkyAtmosphere)
+        spawn(unreal.ExponentialHeightFog, (0, 0, 0))
+        spawn(unreal.CineCameraActor, (700, -1200, 350), (0, 35, 0))
+
+    ppv = None
+    for actor in eas.get_all_level_actors():
+        if isinstance(actor, unreal.PostProcessVolume):
+            ppv = actor
+            break
+    if not ppv:
+        ppv = spawn(unreal.PostProcessVolume, (0, 0, 0))
+    if ppv:
+        ppv.set_editor_property("unbound", True)
+        s = ppv.get_editor_property("settings")
+        lib = mlib
+        lib.try_set_editor_property(s, "b_override_auto_exposure_method", True)
+        lib.try_set_editor_property(s, "auto_exposure_method", unreal.AutoExposureMethod.AEM_MANUAL)
+        lib.try_set_editor_property(s, "b_override_auto_exposure_bias", True)
+        lib.try_set_editor_property(s, "auto_exposure_bias", 8.0)
+        blendables = []
+        for pp_path in (PP_OUTLINE, PP_VINES):
+            if unreal.EditorAssetLibrary.does_asset_exist(pp_path):
+                mat = unreal.load_asset(pp_path)
+                if mat:
+                    blendables.append(mat)
+        if blendables:
+            mlib.try_set_editor_property(s, "b_override_blendables", True)
+            try:
+                weighted = unreal.WeightedBlendables()
+                weighted.set_editor_property(
+                    "array",
+                    [unreal.WeightedBlendable(1.0, mat) for mat in blendables],
+                )
+                s.set_editor_property("weighted_blendables", weighted)
+            except Exception as exc:
+                unreal.log_warning(f"[Showcase] blendables skipped: {exc}")
+        ppv.set_editor_property("settings", s)
+
+
+def _spawn_showcase_spheres() -> list[dict]:
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    mesh = unreal.load_asset(SPHERE)
+    results: list[dict] = []
+    for label, mi_path, loc in SHOWCASE:
+        if not unreal.EditorAssetLibrary.does_asset_exist(mi_path):
+            results.append({"label": label, "status": "missing_mi"})
+            continue
+        actor = eas.spawn_actor_from_class(
+            unreal.StaticMeshActor,
+            unreal.Vector(*loc),
+            unreal.Rotator(0, 0, 0),
+        )
+        if not actor:
+            results.append({"label": label, "status": "spawn_failed"})
+            continue
+        actor.set_actor_label(f"Showcase_{label}")
+        actor.set_actor_scale3d(unreal.Vector(1.5, 1.5, 1.5))
+        sm = actor.static_mesh_component
+        sm.set_static_mesh(mesh)
+        mi = unreal.load_asset(mi_path)
+        sm.set_material(0, mi)
+        results.append({"label": label, "status": "ok", "actor": actor.get_name(), "mi": mi_path})
+    return results
+
+
+def build_all() -> int:
+    _ensure_level()
+    spheres = _spawn_showcase_spheres()
+    unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
+    report = {"level": LEVEL, "spheres": spheres, "pp_outline": PP_OUTLINE, "pp_vines": PP_VINES}
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
+    REPORT.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    unreal.log(f"[Showcase] {len(spheres)} spheres in {LEVEL}")
+    print(json.dumps(report, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(build_all())
