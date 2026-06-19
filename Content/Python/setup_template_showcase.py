@@ -25,6 +25,7 @@ SPHERE = "/Engine/BasicShapes/Sphere.Sphere"
 
 PP_OUTLINE = "/Game/EnvSandbox/Materials/PostProcess/M_PP_ToonOutline.M_PP_ToonOutline"
 PP_VINES = "/Game/EnvSandbox/Materials/PostProcess/M_PP_StorybookVines.M_PP_StorybookVines"
+PP_VINES_INST = "/Game/EnvSandbox/Materials/PostProcess/M_PP_StorybookVines_Inst.M_PP_StorybookVines_Inst"
 
 SHOWCASE: list[tuple[str, str, tuple[float, float, float]]] = [
     ("MI_Universal_Default", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_Default", (-400, 0, 100)),
@@ -79,7 +80,8 @@ def _ensure_level() -> None:
         lib.try_set_editor_property(s, "b_override_auto_exposure_bias", True)
         lib.try_set_editor_property(s, "auto_exposure_bias", 8.0)
         blendables = []
-        for pp_path in (PP_OUTLINE, PP_VINES):
+        vines_path = PP_VINES_INST if unreal.EditorAssetLibrary.does_asset_exist(PP_VINES_INST) else PP_VINES
+        for pp_path in (PP_OUTLINE, vines_path):
             if unreal.EditorAssetLibrary.does_asset_exist(pp_path):
                 mat = unreal.load_asset(pp_path)
                 if mat:
@@ -128,7 +130,12 @@ def build_all() -> int:
     _ensure_level()
     spheres = _spawn_showcase_spheres()
     unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
-    report = {"level": LEVEL, "spheres": spheres, "pp_outline": PP_OUTLINE, "pp_vines": PP_VINES}
+    report = {
+        "level": LEVEL,
+        "spheres": spheres,
+        "pp_outline": PP_OUTLINE,
+        "pp_vines": PP_VINES_INST if unreal.EditorAssetLibrary.does_asset_exist(PP_VINES_INST) else PP_VINES,
+    }
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps(report, indent=2), encoding="utf-8")
     unreal.log(f"[Showcase] {len(spheres)} spheres in {LEVEL}")

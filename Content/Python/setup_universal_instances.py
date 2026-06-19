@@ -11,6 +11,11 @@ from pathlib import Path
 import material_lib as lib
 from universal_instance_presets import EXTRA_INSTANCES
 
+try:
+    import portfolio_alpha_paths as alphas
+except ImportError:
+    alphas = None
+
 MASTER = f"{lib.MASTER_DIR}/M_Master_Toon_Universal.M_Master_Toon_Universal"
 REPORT = Path(__file__).resolve().parents[2] / "Saved" / "Audit" / "universal_instances.json"
 
@@ -217,6 +222,9 @@ def build_instances() -> list[dict]:
     if not unreal.EditorAssetLibrary.does_asset_exist(MASTER):
         raise RuntimeError(f"Missing master: {MASTER} — run setup_master_universal.py first")
 
+    if alphas:
+        alphas.ensure_alpha_imports()
+
     profile_names = sorted({spec.get("profile", "TP_Default") for spec in INSTANCES})
     profiles = lib.create_toon_profiles(profile_names)
     results: list[dict] = []
@@ -240,8 +248,22 @@ def build_instances() -> list[dict]:
             lib.set_instance_scalar(inst, pname, value)
         for pname, value in spec.get("switches", {}).items():
             lib.set_instance_static_switch(inst, pname, bool(value))
+        texture_wires: dict = {}
+        if alphas:
+            texture_wires.update(alphas.INSTANCE_TEXTURE_WIRES.get(name, {}))
+        texture_wires.update(spec.get("textures", {}))
+        wired_textures: dict[str, str] = {}
+        for pname, tex_candidates in texture_wires.items():
+            wired = lib.set_instance_texture(inst, pname, tex_candidates)
+            if wired:
+                wired_textures[pname] = wired
         lib.save_package(inst)
-        results.append({"instance": name, "folder": folder, "status": "created_or_updated"})
+        results.append({
+            "instance": name,
+            "folder": folder,
+            "status": "created_or_updated",
+            "textures": wired_textures,
+        })
 
     return results
 

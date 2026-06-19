@@ -9,7 +9,7 @@ from __future__ import annotations
 import unreal
 import material_lib as lib
 
-PARENT = f"{lib.MASTER_DIR}/M_Master_Toon_Universal"
+PARENT = f"{lib.MASTER_DIR}/M_Master_Toon_Universal.M_Master_Toon_Universal"
 FOLDER = f"{lib.MATERIALS_ROOT}/Instances/Sakura"
 
 SAKURA = [

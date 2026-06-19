@@ -10,6 +10,31 @@ MASTER_DIR = f"{MATERIALS_ROOT}/Masters"
 SDF_INST_DIR = f"{MATERIALS_ROOT}/SDF/Instances"
 ENV_INST_DIR = f"{MATERIALS_ROOT}/Instances/Environment"
 POST_DIR = f"{MATERIALS_ROOT}/PostProcess"
+
+# Post-process materials must sample PPI_POST_PROCESS_INPUT0, not PPI_SCENE_COLOR.
+PP_SCENE_TEXTURE = "PPI_POST_PROCESS_INPUT0"
+
+
+def post_process_scene_texture_id():
+    return getattr(unreal.SceneTextureId, PP_SCENE_TEXTURE)
+
+
+def clear_material_graph(material) -> None:
+    try:
+        for expr in list(unreal.MaterialEditingLibrary.get_material_expressions(material) or []):
+            unreal.MaterialEditingLibrary.delete_material_expression(material, expr)
+    except Exception as exc:
+        unreal.log_warning(f"[material_lib] clear graph: {exc}")
+
+
+def mask_rgb(owner, from_expr, x: int, y: int):
+    mask = create_expression(owner, unreal.MaterialExpressionComponentMask, x, y)
+    mask.set_editor_property("r", True)
+    mask.set_editor_property("g", True)
+    mask.set_editor_property("b", True)
+    mask.set_editor_property("a", False)
+    connect(from_expr, "", mask, "")
+    return mask
 MPC_DIR = f"{MATERIALS_ROOT}/Functions"
 
 
@@ -44,24 +69,131 @@ def create_expression(owner, expression_class, x: int, y: int):
     )
 
 
+def _owner_material(expr):
+    try:
+        return expr.get_outer()
+    except Exception:
+        return None
+
+
 def connect(from_expr, from_output: str, to_expr, to_input: str) -> bool:
     try:
-        unreal.MaterialEditingLibrary.connect_material_expressions(
+        result = unreal.MaterialEditingLibrary.connect_material_expressions(
             from_expr, from_output, to_expr, to_input
         )
+        # UE Python often returns None on success; only explicit False is failure.
+        return result is not False
+    except Exception:
+        return False
+
+
+def _verify_input(to_expr, from_expr, pin: str) -> bool:
+    material = _owner_material(to_expr)
+    if not material:
+        return True
+    try:
+        pin_names = list(
+            unreal.MaterialEditingLibrary.get_material_expression_input_names(to_expr)
+        )
+        if pin in pin_names:
+            idx = pin_names.index(pin)
+        elif pin in ("", "None"):
+            idx = 0
+        else:
+            return True
+        wired = list(
+            unreal.MaterialEditingLibrary.get_inputs_for_material_expression(
+                material, to_expr
+            )
+        )
+        if idx < len(wired):
+            return wired[idx] == from_expr
+    except Exception:
+        pass
+    return True
+
+
+def connect_any(from_expr, to_expr, pin_names: tuple[str, ...], from_output: str = "") -> bool:
+    seen: set[str] = set()
+    for pin in pin_names:
+        if pin in seen:
+            continue
+        seen.add(pin)
+        if connect(from_expr, from_output, to_expr, pin) and _verify_input(
+            to_expr, from_expr, pin
+        ):
+            return True
+    return False
+
+
+def _connect_input_prop(to_expr, prop_name: str, from_expr) -> bool:
+    try:
+        prop = to_expr.get_editor_property(prop_name)
+        prop.connect(0, from_expr)
+        material = _owner_material(to_expr)
+        if material:
+            material.modify()
         return True
     except Exception:
         return False
 
 
 def connect_unary(from_expr, to_expr) -> bool:
-    pin_names = list(
-        unreal.MaterialEditingLibrary.get_material_expression_input_names(to_expr)
-    )
-    for pin in pin_names + ["", "None"]:
-        if connect(from_expr, "", to_expr, pin):
+    """Wire single-input nodes (Sine/Abs/OneMinus/Frac/etc.) using UE 5.8 pin names."""
+    pin_names: list[str] = []
+    try:
+        pin_names = list(
+            unreal.MaterialEditingLibrary.get_material_expression_input_names(to_expr)
+        )
+    except Exception:
+        pass
+    if connect_any(
+        from_expr, to_expr, tuple(pin_names) + ("None", "", "input", "Input")
+    ):
+        return True
+    for prop in ("input", "Input"):
+        if _connect_input_prop(to_expr, prop, from_expr):
             return True
     return False
+
+
+def connect_append2(a_expr, b_expr, append_expr) -> bool:
+    """Append two scalars or vectors (AppendVector A/B pins in UE 5.8)."""
+    ok_a = connect_any(a_expr, append_expr, ("A", "a", "Input0", "R", "r"))
+    ok_b = connect_any(b_expr, append_expr, ("B", "b", "Input1", "G", "g"))
+    return ok_a and ok_b
+
+
+def connect_append3_from_scalars(r_expr, g_expr, b_expr, owner, x: int, y: int):
+    """Build float3 from three scalar expressions via nested AppendVector."""
+    rg = create_expression(owner, unreal.MaterialExpressionAppendVector, x, y)
+    connect_append2(r_expr, g_expr, rg)
+    rgb = create_expression(owner, unreal.MaterialExpressionAppendVector, x + 160, y)
+    connect_append2(rg, b_expr, rgb)
+    return rgb
+
+
+def connect_function_input(from_expr, call_expr, *pin_names: str) -> bool:
+    """Wire an input on MaterialExpressionMaterialFunctionCall."""
+    return connect_any(from_expr, call_expr, pin_names)
+
+
+def connect_static_switch(switch_expr, true_expr, false_expr) -> bool:
+    """Wire both branches of a MaterialExpressionStaticSwitchParameter."""
+    # UE 5.8 exposes True/False — A/B are compile-time labels only, not connectable pins.
+    ok_true = connect_any(true_expr, switch_expr, ("True", "Yes", "a", "A"))
+    ok_false = connect_any(false_expr, switch_expr, ("False", "No", "b", "B"))
+    if ok_true and ok_false:
+        return True
+    if not ok_true:
+        ok_true = _connect_input_prop(switch_expr, "a", true_expr) or _connect_input_prop(
+            switch_expr, "A", true_expr
+        )
+    if not ok_false:
+        ok_false = _connect_input_prop(switch_expr, "b", false_expr) or _connect_input_prop(
+            switch_expr, "B", false_expr
+        )
+    return ok_true and ok_false
 
 
 def connect_front_material(material, from_expr, from_output: str = "") -> None:
@@ -95,11 +227,102 @@ def vector_param(owner, name: str, group: str, default: tuple[float, float, floa
     return expr
 
 
+def collection_param(
+    owner,
+    collection_path: str,
+    param_name: str,
+    x: int,
+    y: int,
+    *,
+    vector: bool = False,
+):
+    """MaterialExpressionCollectionParameter wired to an MPC asset."""
+    leaf = collection_path.rsplit("/", 1)[-1]
+    asset_path = f"{collection_path}.{leaf}"
+    if not unreal.EditorAssetLibrary.does_asset_exist(asset_path):
+        return None
+    collection = unreal.load_asset(asset_path)
+    if not collection:
+        return None
+    expr = create_expression(owner, unreal.MaterialExpressionCollectionParameter, x, y)
+    expr.set_editor_property("collection", collection)
+    expr.set_editor_property("parameter_name", param_name)
+    return expr
+
+
+def collection_scalar(owner, collection_path: str, param_name: str, x: int, y: int):
+    return collection_param(owner, collection_path, param_name, x, y, vector=False)
+
+
+def collection_vector(owner, collection_path: str, param_name: str, x: int, y: int):
+    return collection_param(owner, collection_path, param_name, x, y, vector=True)
+
+
 def texture_param(owner, name: str, group: str, x: int, y: int):
     expr = create_expression(owner, unreal.MaterialExpressionTextureSampleParameter2D, x, y)
     expr.set_editor_property("parameter_name", name)
     expr.set_editor_property("group", group)
     return expr
+
+
+def resolve_texture_path(candidates: list[str] | str) -> str | None:
+    if isinstance(candidates, str):
+        candidates = [candidates]
+    for path in candidates:
+        if unreal.EditorAssetLibrary.does_asset_exist(path):
+            return path
+    return None
+
+
+def load_texture(candidates: list[str] | str):
+    path = resolve_texture_path(candidates)
+    return unreal.load_asset(path) if path else None
+
+
+def set_expression_texture(expr, candidates: list[str] | str) -> str | None:
+    tex = load_texture(candidates)
+    if not tex or not expr:
+        return None
+    for prop in ("texture", "Texture"):
+        try:
+            if hasattr(expr, "has_editor_property") and expr.has_editor_property(prop):
+                expr.set_editor_property(prop, tex)
+                return resolve_texture_path(candidates)
+        except Exception:
+            pass
+    return None
+
+
+def set_instance_texture(instance, param_name: str, candidates: list[str] | str) -> str | None:
+    tex = load_texture(candidates)
+    if not tex or not instance:
+        return None
+    path = resolve_texture_path(candidates)
+    try:
+        if hasattr(unreal.MaterialEditingLibrary, "set_material_instance_texture_parameter_value"):
+            unreal.MaterialEditingLibrary.set_material_instance_texture_parameter_value(
+                instance, param_name, tex
+            )
+        else:
+            instance.set_texture_parameter_value_editor_only(param_name, tex)
+        return path
+    except Exception as exc:
+        unreal.log_warning(f"[material_lib] texture {param_name}: {exc}")
+        return None
+
+
+def post_process_blendable_location():
+    """Match M_PP_ToonOutline stack point for UE 5.8 blendable ordering."""
+    for loc in (
+        unreal.BlendableLocation.BL_REPLACING_TONEMAPPER,
+        unreal.BlendableLocation.BL_SCENE_COLOR_AFTER_TONEMAP,
+    ):
+        try:
+            _ = loc  # noqa: F841 — probe enum exists
+            return loc
+        except AttributeError:
+            continue
+    return unreal.BlendableLocation.BL_REPLACING_TONEMAPPER
 
 
 def create_toon_profiles(names: list[str]) -> dict[str, unreal.ToonProfile]:

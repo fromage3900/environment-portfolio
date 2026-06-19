@@ -67,7 +67,7 @@ def _run_ue_pipeline() -> int:
     run("universal master (skip if exists)", refresh_universal)
     run("universal instances", lambda: __import__("setup_universal_instances").build_instances())
     run("audio + outline PP", lambda: __import__("setup_audio_outline").build_all())
-    run("storybook vines PP", lambda: __import__("setup_storybook_outline").build_all())
+    run("storybook vines PP", lambda: __import__("setup_storybook_outline").build_all(force=True))
     run("template showcase", lambda: __import__("setup_template_showcase").build_all())
     run("meshblend activator rewire", lambda: __import__("fix_meshblend_activator_refs").main())
 

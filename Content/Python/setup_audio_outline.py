@@ -58,17 +58,23 @@ def build_mpc() -> str:
     return path
 
 
-def build_post_process() -> str:
+def build_post_process(force: bool = False) -> str:
     lib.ensure_directory(lib.POST_DIR)
     path = lib.asset_path(lib.POST_DIR, PP_NAME)
+    material = None
     if unreal.EditorAssetLibrary.does_asset_exist(path):
-        unreal.log(f"[AudioOutline] reusing PP {path}")
-        return path
+        material = unreal.load_asset(path)
+        if material and not force:
+            unreal.log(f"[AudioOutline] reusing PP {path}")
+            return path
+        if material and force:
+            lib.clear_material_graph(material)
 
-    asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
-    material = asset_tools.create_asset(
-        PP_NAME, lib.POST_DIR, unreal.Material, unreal.MaterialFactoryNew()
-    )
+    if not material:
+        asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+        material = asset_tools.create_asset(
+            PP_NAME, lib.POST_DIR, unreal.Material, unreal.MaterialFactoryNew()
+        )
     if not material:
         raise RuntimeError(f"Failed to create {PP_NAME}")
 
@@ -77,7 +83,7 @@ def build_post_process() -> str:
 
     scene_tex = lib.create_expression(material, unreal.MaterialExpressionSceneTexture, -800, 0)
     scene_tex.set_editor_property(
-        "scene_texture_id", unreal.SceneTextureId.PPI_SCENE_COLOR
+        "scene_texture_id", lib.post_process_scene_texture_id()
     )
 
     edge_width = lib.scalar_param(material, "OutlineWidth", "Outline", 1.5, -800, 160)
@@ -100,9 +106,11 @@ def build_post_process() -> str:
     lib.connect(depth_edge, "", edge_mask, "A")
     lib.connect(edge_strength, "", edge_mask, "B")
 
+    scene_rgb = lib.mask_rgb(material, scene_tex, -400, 0)
+    edge_rgb = lib.mask_rgb(material, edge_color, -200, 280)
     outline_mix = lib.create_expression(material, unreal.MaterialExpressionLinearInterpolate, 80, 120)
-    lib.connect(scene_tex, "", outline_mix, "A")
-    lib.connect(edge_color, "", outline_mix, "B")
+    lib.connect(scene_rgb, "", outline_mix, "A")
+    lib.connect(edge_rgb, "", outline_mix, "B")
     lib.connect(edge_mask, "", outline_mix, "Alpha")
 
     unreal.MaterialEditingLibrary.connect_material_property(
@@ -119,10 +127,10 @@ def build_post_process() -> str:
     return path
 
 
-def build_all() -> int:
+def build_all(force: bool = False) -> int:
     unreal.log("=== Audio + Outline build ===")
     mpc_path = build_mpc()
-    pp_path = build_post_process()
+    pp_path = build_post_process(force=force)
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "mpc": mpc_path,
@@ -135,4 +143,7 @@ def build_all() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(build_all())
+    import sys
+
+    rebuild = "--rebuild" in sys.argv or "--force" in sys.argv
+    raise SystemExit(build_all(force=rebuild))

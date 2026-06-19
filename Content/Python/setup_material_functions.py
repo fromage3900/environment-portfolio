@@ -30,11 +30,14 @@ MF_SPECS: list[tuple[str, str]] = [
     ("MF_GildingOverlay", "Gold tint overlay blend"),
     ("MF_MapComposite", "Normal/roughness map composite factor"),
     ("MF_SDF_BandRelief", "World SDF band relief mask"),
+    ("MF_AnimeSkinWrap", "Wrap lighting + soft skin shadow mask"),
 ]
 
 
 def _clear_function_graph(mf: unreal.MaterialFunction) -> None:
     try:
+        if not hasattr(unreal.MaterialEditingLibrary, "get_function_expressions"):
+            return
         exprs = unreal.MaterialEditingLibrary.get_function_expressions(mf)
         for expr in list(exprs or []):
             unreal.MaterialEditingLibrary.delete_material_expression(mf, expr)
@@ -264,6 +267,41 @@ def _build_map_composite(mf: unreal.MaterialFunction) -> None:
     _add_function_output(mf, normal_map, "Normal", 0, 160)
 
 
+def _build_anime_skin_wrap(mf: unreal.MaterialFunction) -> None:
+    """Wrapped N·L proxy for anime skin — strength 0 = neutral lit factor (~1)."""
+    normal = lib.create_expression(mf, unreal.MaterialExpressionPixelNormalWS, -900, 0)
+    light_dir = lib.create_expression(mf, unreal.MaterialExpressionConstant3Vector, -900, 140)
+    light_dir.set_editor_property("constant", unreal.LinearColor(0.35, 0.55, 0.85, 1.0))
+    ndotl = lib.create_expression(mf, unreal.MaterialExpressionDotProduct, -680, 40)
+    lib.connect(normal, "", ndotl, "A")
+    lib.connect(light_dir, "", ndotl, "B")
+    wrap_str = lib.scalar_param(mf, "WrapStrength", "Skin", 0.0, -900, 280)
+    wrap_rad = lib.scalar_param(mf, "WrapRadius", "Skin", 0.55, -900, 380)
+    wrap_mul = lib.create_expression(mf, unreal.MaterialExpressionMultiply, -520, 120)
+    lib.connect(wrap_rad, "", wrap_mul, "A")
+    lib.connect(wrap_str, "", wrap_mul, "B")
+    wrap_add = lib.create_expression(mf, unreal.MaterialExpressionAdd, -360, 40)
+    lib.connect(ndotl, "", wrap_add, "A")
+    lib.connect(wrap_mul, "", wrap_add, "B")
+    one = lib.create_expression(mf, unreal.MaterialExpressionConstant, -520, 260)
+    one.set_editor_property("r", 1.0)
+    wrap_den = lib.create_expression(mf, unreal.MaterialExpressionAdd, -360, 200)
+    lib.connect(one, "", wrap_den, "A")
+    lib.connect(wrap_rad, "", wrap_den, "B")
+    wrap_div = lib.create_expression(mf, unreal.MaterialExpressionDivide, -200, 80)
+    lib.connect(wrap_add, "", wrap_div, "A")
+    lib.connect(wrap_den, "", wrap_div, "B")
+    wrap_sat = lib.create_expression(mf, unreal.MaterialExpressionSaturate, -40, 80)
+    lib.connect_unary(wrap_div, wrap_sat)
+    std_sat = lib.create_expression(mf, unreal.MaterialExpressionSaturate, -200, 220)
+    lib.connect_unary(ndotl, std_sat)
+    lit = lib.create_expression(mf, unreal.MaterialExpressionLinearInterpolate, 120, 120)
+    lib.connect(std_sat, "", lit, "A")
+    lib.connect(wrap_sat, "", lit, "B")
+    lib.connect(wrap_str, "", lit, "Alpha")
+    _add_function_output(mf, lit, "Result", 300, 120)
+
+
 def _build_sdf_band(mf: unreal.MaterialFunction) -> None:
     world = lib.create_expression(mf, unreal.MaterialExpressionWorldPosition, -900, 0)
     mask_xy = lib.create_expression(mf, unreal.MaterialExpressionComponentMask, -720, 0)
@@ -300,6 +338,7 @@ BUILDERS = {
     "MF_GildingOverlay": _build_gilding,
     "MF_MapComposite": _build_map_composite,
     "MF_SDF_BandRelief": _build_sdf_band,
+    "MF_AnimeSkinWrap": _build_anime_skin_wrap,
 }
 
 

@@ -22,17 +22,21 @@ import material_lib as lib
 MASTER_NAME = "M_Master_Toon_Universal"
 WAT = "/Engine/Functions/Engine_MaterialFunctions02/Texturing/WorldAlignedTexture"
 WAN = "/Engine/Functions/Engine_MaterialFunctions02/Texturing/WorldAlignedNormal"
+MF_SKIN_WRAP = f"{lib.FUNCTION_DIR}/MF_AnimeSkinWrap"
 
 WIRES: dict[str, bool] = {}
 
 
 def wire(tag, from_e, to_e, *pins) -> bool:
-    for p in pins:
-        if from_e is not None and lib.connect(from_e, "", to_e, p):
-            WIRES[tag] = True
-            return True
-    WIRES[tag] = False
-    return False
+    if from_e is None or to_e is None:
+        WIRES[tag] = False
+        return False
+    if not pins or pins in (("Input",), ("Input", ""), ("input",), ("input", "")):
+        ok = lib.connect_unary(from_e, to_e)
+    else:
+        ok = lib.connect_any(from_e, to_e, pins)
+    WIRES[tag] = ok
+    return ok
 
 
 def const1(m, x, y, val: float = 1.0):
@@ -65,14 +69,22 @@ def static_switch(m, name, group, x, y, default=False):
 
 
 def world_xy(m, x, y):
+    """World XY procedural coords as stable float2 (Frac after mask avoids LWC typing)."""
     wp = lib.create_expression(m, unreal.MaterialExpressionWorldPosition, x, y)
     mask = lib.create_expression(m, unreal.MaterialExpressionComponentMask, x + 160, y)
     mask.set_editor_property("r", True)
     mask.set_editor_property("g", True)
     mask.set_editor_property("b", False)
     mask.set_editor_property("a", False)
-    wire("wxy_wp", wp, mask, "")
-    return mask
+    lib.connect_unary(wp, mask)
+    scl = lib.create_expression(m, unreal.MaterialExpressionMultiply, x + 320, y)
+    lib.connect(mask, "", scl, "A")
+    tiny = lib.create_expression(m, unreal.MaterialExpressionConstant, x + 160, y + 100)
+    tiny.set_editor_property("r", 0.0025)
+    lib.connect(tiny, "", scl, "B")
+    stable = lib.create_expression(m, unreal.MaterialExpressionFrac, x + 480, y)
+    lib.connect_unary(scl, stable)
+    return stable
 
 
 def style_peak(m, style, target: float, tag: str, x, y):
@@ -82,13 +94,13 @@ def style_peak(m, style, target: float, tag: str, x, y):
     wire(f"{tag}_subA", style, sub, "A")
     wire(f"{tag}_subB", tgt, sub, "B")
     ab = lib.create_expression(m, unreal.MaterialExpressionAbs, x + 260, y)
-    wire(f"{tag}_abs", sub, ab, "Input")
+    WIRES[f"{tag}_abs"] = lib.connect_unary(sub, ab)
     scale = const1(m, x + 120, y + 80, 2.0)
     sc = lib.create_expression(m, unreal.MaterialExpressionMultiply, x + 400, y)
     wire(f"{tag}_scA", ab, sc, "A")
     wire(f"{tag}_scB", scale, sc, "B")
     inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, x + 540, y)
-    wire(f"{tag}_inv", sc, inv, "Input")
+    WIRES[f"{tag}_inv"] = lib.connect_unary(sc, inv)
     return inv
 
 
@@ -97,22 +109,28 @@ def scalar_switch(m, name, group, x, y, default=False):
 
 
 def apply_temporal_uv(m, uv, temporal_str, wind, noise_scale, smear, boil, tag: str):
-    """World-space boil/smear offset on UVs (strength 0 = passthrough)."""
-    wxy = world_xy(m, -2400, 6200)
+    """UV-space boil/smear offset (strength 0 = passthrough). Uses TC, not world pos (avoids LWC/float2 mix)."""
+    tc_noise = lib.create_expression(m, unreal.MaterialExpressionTextureCoordinate, -2400, 6200)
     t = lib.create_expression(m, unreal.MaterialExpressionTime, -2400, 6320)
     wind_t = lib.create_expression(m, unreal.MaterialExpressionMultiply, -2240, 6320)
     wire(f"{tag}_wtA", t, wind_t, "A")
     wire(f"{tag}_wtB", wind, wind_t, "B")
     nscale = lib.create_expression(m, unreal.MaterialExpressionMultiply, -2240, 6200)
-    wire(f"{tag}_nsA", wxy, nscale, "A")
+    wire(f"{tag}_nsA", tc_noise, nscale, "A")
     wire(f"{tag}_nsB", noise_scale, nscale, "B")
     phase = lib.create_expression(m, unreal.MaterialExpressionAdd, -2080, 6260)
     wire(f"{tag}_phA", nscale, phase, "A")
     wire(f"{tag}_phB", wind_t, phase, "B")
-    s = lib.create_expression(m, unreal.MaterialExpressionSine, -1920, 6260)
+    phase_x = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -1920, 6260)
+    phase_x.set_editor_property("r", True)
+    phase_x.set_editor_property("g", False)
+    phase_x.set_editor_property("b", False)
+    phase_x.set_editor_property("a", False)
+    wire(f"{tag}_phx", phase, phase_x, "")
+    s = lib.create_expression(m, unreal.MaterialExpressionSine, -1760, 6260)
     s.set_editor_property("period", 1.0)
-    wire(f"{tag}_sin", phase, s, "Input")
-    boil_off = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6260)
+    wire(f"{tag}_sin", phase_x, s, "Input")
+    boil_off = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1600, 6260)
     wire(f"{tag}_boilA", s, boil_off, "A")
     wire(f"{tag}_boilB", boil, boil_off, "B")
     boil_uv = lib.create_expression(m, unreal.MaterialExpressionAdd, -1600, 6220)
@@ -137,7 +155,7 @@ def apply_temporal_uv(m, uv, temporal_str, wind, noise_scale, smear, boil, tag: 
 
 
 def parallax_uv_offset(m, uv, height_tex, scale, strength, tag: str):
-    """Height-map POM proxy: offset UV before map samples."""
+    """Height-map POM proxy: offset UV before map samples (scalar→float2 append avoids float3 mix)."""
     h_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -2400, 6600)
     wire(f"{tag}_h_obj", height_tex, h_s, "Tex", "TextureObject")
     wire(f"{tag}_h_uv", uv, h_s, "UVs", "Coordinates")
@@ -148,22 +166,33 @@ def parallax_uv_offset(m, uv, height_tex, scale, strength, tag: str):
     h_r.set_editor_property("a", False)
     wire(f"{tag}_h_r", h_s, h_r, "")
     view = lib.create_expression(m, unreal.MaterialExpressionCameraVectorWS, -2400, 6720)
-    view_xy = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -2240, 6720)
-    view_xy.set_editor_property("r", True)
-    view_xy.set_editor_property("g", True)
-    view_xy.set_editor_property("b", False)
-    view_xy.set_editor_property("a", False)
-    wire(f"{tag}_vxy", view, view_xy, "")
+    view_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -2240, 6720)
+    view_r.set_editor_property("r", True)
+    view_r.set_editor_property("g", False)
+    view_r.set_editor_property("b", False)
+    view_r.set_editor_property("a", False)
+    WIRES[f"{tag}_vr"] = lib.connect_unary(view, view_r)
+    view_g = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -2240, 6840)
+    view_g.set_editor_property("r", False)
+    view_g.set_editor_property("g", True)
+    view_g.set_editor_property("b", False)
+    view_g.set_editor_property("a", False)
+    WIRES[f"{tag}_vg"] = lib.connect_unary(view, view_g)
     pom_s = lib.create_expression(m, unreal.MaterialExpressionMultiply, -2080, 6660)
     wire(f"{tag}_psA", h_r, pom_s, "A")
     wire(f"{tag}_psB", scale, pom_s, "B")
     pom_s2 = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1920, 6660)
     wire(f"{tag}_ps2A", pom_s, pom_s2, "A")
     wire(f"{tag}_ps2B", strength, pom_s2, "B")
-    off = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6660)
-    wire(f"{tag}_offA", pom_s2, off, "A")
-    wire(f"{tag}_offB", view_xy, off, "B")
-    out = lib.create_expression(m, unreal.MaterialExpressionAdd, -1600, 6620)
+    off_u = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6620)
+    wire(f"{tag}_ouA", pom_s2, off_u, "A")
+    wire(f"{tag}_ouB", view_r, off_u, "B")
+    off_v = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, 6740)
+    wire(f"{tag}_ovA", pom_s2, off_v, "A")
+    wire(f"{tag}_ovB", view_g, off_v, "B")
+    off = lib.create_expression(m, unreal.MaterialExpressionAppendVector, -1600, 6680)
+    WIRES[f"{tag}_offA"] = lib.connect_append2(off_u, off_v, off)
+    out = lib.create_expression(m, unreal.MaterialExpressionAdd, -1440, 6620)
     wire(f"{tag}_pA", uv, out, "A")
     wire(f"{tag}_pB", off, out, "B")
     return out
@@ -197,8 +226,7 @@ def sample_maps_uv(
 
     def tri_sw(tt, uv_e, tri_e, yy):
         sw = static_switch(m, "bTriplanar", "Triplanar", -1060, yy)
-        wire(f"{tt}_true", tri_e or uv_e, sw, "A", "True")
-        wire(f"{tt}_false", uv_e, sw, "B", "False")
+        WIRES[f"{tt}_sw"] = lib.connect_static_switch(sw, tri_e or uv_e, uv_e)
         return sw
 
     alb = tri_sw(f"{tag}_swA", alb_s, waT, y0)
@@ -215,6 +243,35 @@ def lerp3(m, a, b, alpha, tag: str, x: int, y: int):
     return n
 
 
+def const3(m, x, y, r: float, g: float, b: float):
+    c = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, x, y)
+    c.set_editor_property("constant", unreal.LinearColor(r, g, b, 1.0))
+    return c
+
+
+def mask_channel(m, expr, channel: str, tag: str, x: int, y: int):
+    """Extract one channel from float2/float3 for scalar world-XY stylization."""
+    mask = lib.create_expression(m, unreal.MaterialExpressionComponentMask, x, y)
+    mask.set_editor_property("r", channel in ("r", "x"))
+    mask.set_editor_property("g", channel in ("g", "y"))
+    mask.set_editor_property("b", channel in ("b", "z"))
+    mask.set_editor_property("a", False)
+    wire(f"{tag}_m", expr, mask, "")
+    return mask
+
+
+def concavity_mask(m, curve_abs, sens, tag: str, x: int, y: int):
+    """High in cavities — inverse of convex curvature magnitude."""
+    sc = lib.create_expression(m, unreal.MaterialExpressionMultiply, x, y)
+    wire(f"{tag}_scA", curve_abs, sc, "A")
+    wire(f"{tag}_scB", sens, sc, "B")
+    inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, x + 140, y)
+    wire(f"{tag}_inv", sc, inv, "Input")
+    sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, x + 280, y)
+    wire(f"{tag}_sat", inv, sat, "Input")
+    return sat
+
+
 def _clear_material_graph(material) -> None:
     try:
         exprs = unreal.MaterialEditingLibrary.get_material_expressions(material)
@@ -228,7 +285,7 @@ def build():
     lib.ensure_directory(lib.MASTER_DIR)
     path = lib.asset_path(lib.MASTER_DIR, MASTER_NAME)
     exists = unreal.EditorAssetLibrary.does_asset_exist(path)
-    force = "--force" in sys.argv
+    force = any("force" in str(a).lower() for a in sys.argv)
     if exists and not force:
         unreal.log_warning(
             f"[Universal] {path} exists — skipping rebuild. "
@@ -252,6 +309,14 @@ def build():
         m = at.create_asset(MASTER_NAME, lib.MASTER_DIR, unreal.Material, unreal.MaterialFactoryNew())
     if not m:
         raise RuntimeError("create_asset failed — close material tabs and retry")
+
+    try:
+        import setup_material_functions as mf_setup
+
+        mf_setup.build_all(force=force)
+    except Exception as exc:
+        unreal.log_warning(f"[Universal] MF library: {exc}")
+
     m.set_editor_property("material_domain", unreal.MaterialDomain.MD_SURFACE)
     m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_OPAQUE)
     lib.try_set_editor_property(m, "bUsesSubstrate", True)
@@ -480,19 +545,21 @@ def build():
     wire("star_cB", const_high, star_col, "B")
     wire("star_c_alpha", star_pts, star_col, "Alpha")
 
-    # nebula: soft multi-frequency sine clouds in world XY
+    # nebula: soft multi-frequency sine clouds in world XY (scalar path for SM6)
     neb_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 400, 680)
     wire("neb_mulA", wxy, neb_mul, "A")
     wire("neb_mulB", nebula_scale, neb_mul, "B")
-    neb_sx = lib.create_expression(m, unreal.MaterialExpressionSine, 560, 640)
+    neb_x = mask_channel(m, neb_mul, "r", "neb_x", 560, 640)
+    neb_y = mask_channel(m, neb_mul, "g", "neb_y", 560, 760)
+    neb_sx = lib.create_expression(m, unreal.MaterialExpressionSine, 720, 640)
     neb_sx.set_editor_property("period", 1.0)
-    wire("neb_sx", neb_mul, neb_sx, "Input")
-    neb_sy = lib.create_expression(m, unreal.MaterialExpressionSine, 560, 760)
+    wire("neb_sx", neb_x, neb_sx, "Input")
+    neb_sy = lib.create_expression(m, unreal.MaterialExpressionSine, 720, 760)
     neb_sy.set_editor_property("period", 1.0)
-    neb_mul2 = lib.create_expression(m, unreal.MaterialExpressionMultiply, 400, 820)
-    wire("neb2A", neb_mul, neb_mul2, "A")
-    wire("neb2B", const1(m, 400, 900, 1.73), neb_mul2, "B")
-    wire("neb_sy", neb_mul2, neb_sy, "Input")
+    neb_y_s = lib.create_expression(m, unreal.MaterialExpressionMultiply, 560, 820)
+    wire("neb_yA", neb_y, neb_y_s, "A")
+    wire("neb_yB", const1(m, 400, 900, 1.73), neb_y_s, "B")
+    wire("neb_sy", neb_y_s, neb_sy, "Input")
     neb_prod = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 700)
     wire("neb_pA", neb_sx, neb_prod, "A")
     wire("neb_pB", neb_sy, neb_prod, "B")
@@ -520,18 +587,8 @@ def build():
     gal_rad = lib.create_expression(m, unreal.MaterialExpressionPower, 880, 980)
     wire("gal_radA", gal_fall, gal_rad, "Base")
     wire("gal_radB", const1(m, 720, 1080, 1.8), gal_rad, "Exp")
-    gal_x = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 560, 1100)
-    gal_x.set_editor_property("r", True)
-    gal_x.set_editor_property("g", False)
-    gal_x.set_editor_property("b", False)
-    gal_x.set_editor_property("a", False)
-    wire("gal_x", gal_mul, gal_x, "")
-    gal_y = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 560, 1180)
-    gal_y.set_editor_property("r", False)
-    gal_y.set_editor_property("g", True)
-    gal_y.set_editor_property("b", False)
-    gal_y.set_editor_property("a", False)
-    wire("gal_y", gal_mul, gal_y, "")
+    gal_x = mask_channel(m, gal_mul, "r", "gal_x", 560, 1100)
+    gal_y = mask_channel(m, gal_mul, "g", "gal_y", 560, 1180)
     gal_spiral = lib.create_expression(m, unreal.MaterialExpressionSine, 720, 1140)
     gal_spiral.set_editor_property("period", 1.0)
     gal_ang = lib.create_expression(m, unreal.MaterialExpressionMultiply, 560, 1260)
@@ -621,11 +678,13 @@ def build():
     wire("fl_uvB", flower_scale, flower_uv, "B")
     petal_x = lib.create_expression(m, unreal.MaterialExpressionSine, 1400, 860)
     petal_x.set_editor_property("period", 1.0)
-    wire("petal_x", flower_uv, petal_x, "Input")
+    flower_x = mask_channel(m, flower_uv, "r", "fl_x", 1220, 860)
+    wire("petal_x", flower_x, petal_x, "Input")
     petal_y = lib.create_expression(m, unreal.MaterialExpressionSine, 1400, 980)
     petal_y.set_editor_property("period", 1.0)
+    flower_y = mask_channel(m, flower_uv, "g", "fl_y", 1220, 980)
     flower_uv2 = lib.create_expression(m, unreal.MaterialExpressionMultiply, 1400, 920)
-    wire("fl2A", flower_uv, flower_uv2, "A")
+    wire("fl2A", flower_y, flower_uv2, "A")
     const_swap = const1(m, 1220, 1040, 0.7)
     wire("fl2B", const_swap, flower_uv2, "B")
     wire("petal_y_in", flower_uv2, petal_y, "Input")
@@ -718,16 +777,12 @@ def build():
     # star: high-frequency sine grid
     star_sx = lib.create_expression(m, unreal.MaterialExpressionSine, 400, 1760)
     star_sx.set_editor_property("period", 5.0)
-    wire("star_sx", fairy_uv, star_sx, "Input")
+    fairy_fx2 = mask_channel(m, fairy_uv, "r", "fairy_fx2", 220, 1760)
+    wire("star_sx", fairy_fx2, star_sx, "Input")
     star_sy = lib.create_expression(m, unreal.MaterialExpressionSine, 400, 1880)
     star_sy.set_editor_property("period", 5.0)
-    fairy_uv_y = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 220, 1880)
-    fairy_uv_y.set_editor_property("r", False)
-    fairy_uv_y.set_editor_property("g", True)
-    fairy_uv_y.set_editor_property("b", False)
-    fairy_uv_y.set_editor_property("a", False)
-    wire("fuv_y", fairy_uv, fairy_uv_y, "")
-    wire("star_sy", fairy_uv_y, star_sy, "Input")
+    fairy_fy2 = mask_channel(m, fairy_uv, "g", "fairy_fy2", 220, 1880)
+    wire("star_sy", fairy_fy2, star_sy, "Input")
     star_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 560, 1820)
     wire("star_mA", star_sx, star_m, "A")
     wire("star_mB", star_sy, star_m, "B")
@@ -736,16 +791,12 @@ def build():
     # flower motif for fairy dust (separate from shadow-garden petals)
     fairy_px = lib.create_expression(m, unreal.MaterialExpressionSine, 400, 1960)
     fairy_px.set_editor_property("period", 1.0)
-    wire("fairy_px", fairy_uv, fairy_px, "Input")
+    fairy_fx = mask_channel(m, fairy_uv, "r", "fairy_fx", 220, 1960)
+    wire("fairy_px", fairy_fx, fairy_px, "Input")
     fairy_py = lib.create_expression(m, unreal.MaterialExpressionSine, 400, 2080)
     fairy_py.set_editor_property("period", 1.0)
-    fairy_uv_y2 = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 220, 2080)
-    fairy_uv_y2.set_editor_property("r", False)
-    fairy_uv_y2.set_editor_property("g", True)
-    fairy_uv_y2.set_editor_property("b", False)
-    fairy_uv_y2.set_editor_property("a", False)
-    wire("fuv_y2", fairy_uv, fairy_uv_y2, "")
-    wire("fairy_py", fairy_uv_y2, fairy_py, "Input")
+    fairy_fy = mask_channel(m, fairy_uv, "g", "fairy_fy", 220, 2080)
+    wire("fairy_py", fairy_fy, fairy_py, "Input")
     flower_motif = lib.create_expression(m, unreal.MaterialExpressionMultiply, 560, 2020)
     wire("fl_mA", fairy_px, flower_motif, "A")
     wire("fl_mB", fairy_py, flower_motif, "B")
@@ -789,8 +840,8 @@ def build():
     motif = lib.create_expression(m, unreal.MaterialExpressionAdd, 1540, 1820)
     wire("motif_cA", motif_b, motif, "A")
     wire("motif_cB", m_m, motif, "B")
-    # optional glyph texture overlay
-    wire("glyph_uv", fairy_uv, fairy_glyph, "UVs", "Coordinates")
+    # optional glyph texture overlay (mesh UV — not world LWC)
+    wire("glyph_uv", uv, fairy_glyph, "UVs", "Coordinates")
     motif_tex = lib.create_expression(m, unreal.MaterialExpressionAdd, 1700, 1820)
     wire("motif_texA", motif, motif_tex, "A")
     wire("motif_texB", fairy_glyph, motif_tex, "B")
@@ -847,19 +898,29 @@ def build():
     det_tex = tex_object(m, "DetailNormal", 3600, 280, "MacroDetail")
     det_tiling = lib.scalar_param(m, "DetailTiling", "MacroDetail", 8.0, 3600, 440)
     det_str = lib.scalar_param(m, "DetailStrength", "MacroDetail", 0.0, 3600, 520)
-    # macro: low-freq world noise -> subtle albedo brightness/tint variation (kills tiling)
-    mac_wp = lib.create_expression(m, unreal.MaterialExpressionWorldPosition, 3600, 620)
+    # macro: tiled UV noise -> subtle albedo brightness/tint variation (kills tiling)
+    mac_tc = lib.create_expression(m, unreal.MaterialExpressionTextureCoordinate, 3600, 620)
     mac_scl = lib.create_expression(m, unreal.MaterialExpressionMultiply, 3760, 620)
-    wire("mac_wpA", mac_wp, mac_scl, "A"); wire("mac_wpB", macro_scale, mac_scl, "B")
-    mac_noise = lib.create_expression(m, unreal.MaterialExpressionNoise, 3920, 620)
-    wire("mac_noise_pos", mac_scl, mac_noise, "Position", "")
-    mac_sub = lib.create_expression(m, unreal.MaterialExpressionSubtract, 4080, 620)
-    wire("mac_subA", mac_noise, mac_sub, "A"); wire("mac_subB", const1(m, 3920, 720, 0.5), mac_sub, "B")
-    mac_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 4240, 620)
-    wire("mac_amtA", mac_sub, mac_amt, "A"); wire("mac_amtB", macro_str, mac_amt, "B")
-    mac_fac = lib.create_expression(m, unreal.MaterialExpressionAdd, 4400, 600)
-    wire("mac_facA", const1(m, 4240, 720, 1.0), mac_fac, "A"); wire("mac_facB", mac_amt, mac_fac, "B")
-    color_macro = lib.create_expression(m, unreal.MaterialExpressionMultiply, 4560, 480)
+    wire("mac_tcA", mac_tc, mac_scl, "A"); wire("mac_tcB", macro_scale, mac_scl, "B")
+    mac_tile = lib.create_expression(m, unreal.MaterialExpressionMultiply, 3920, 620)
+    wire("mac_tlA", mac_scl, mac_tile, "A")
+    wire("mac_tlB", const1(m, 3760, 720, 48.0), mac_tile, "B")
+    mac_nx = mask_channel(m, mac_tile, "r", "mac_nx", 3920, 560)
+    mac_ny = mask_channel(m, mac_tile, "g", "mac_ny", 3920, 640)
+    mac_nz = const1(m, 3920, 720, 0.0)
+    mac_pos = lib.connect_append3_from_scalars(mac_nx, mac_ny, mac_nz, m, 4080, 620)
+    mac_noise = lib.create_expression(m, unreal.MaterialExpressionNoise, 4240, 620)
+    wire("mac_noise_pos", mac_pos, mac_noise, "Position", "")
+    mac_sub = lib.create_expression(m, unreal.MaterialExpressionSubtract, 4400, 620)
+    wire("mac_subA", mac_noise, mac_sub, "A")
+    wire("mac_subB", const1(m, 4240, 720, 0.5), mac_sub, "B")
+    mac_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 4560, 620)
+    wire("mac_amtA", mac_sub, mac_amt, "A")
+    wire("mac_amtB", macro_str, mac_amt, "B")
+    mac_fac = lib.create_expression(m, unreal.MaterialExpressionAdd, 4720, 600)
+    wire("mac_facA", const1(m, 4560, 720, 1.0), mac_fac, "A")
+    wire("mac_facB", mac_amt, mac_fac, "B")
+    color_macro = lib.create_expression(m, unreal.MaterialExpressionMultiply, 4720, 480)
     wire("mac_colA", final_color, color_macro, "A"); wire("mac_colB", mac_fac, color_macro, "B")
     final_color = color_macro
     # detail normal: high-freq tiled normal blended into nrm
@@ -927,6 +988,412 @@ def build():
     mg_emis_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 6400, 1100)
     wire("mg_emis_addA", emissive, mg_emis_add, "A"); wire("mg_emis_addB", mg_emis, mg_emis_add, "B")
     emissive = mg_emis_add
+
+    # ---- Character / Elemental / World / Cinematic (Hoyoverse stack, default 0) ----
+    # --- Character: skin wrap, cheek warmth, eye/crystal spec, hair sheen ---
+    skin_wrap_str = lib.scalar_param(m, "SkinWrapStrength", "Character", 0.0, 6600, 120)
+    skin_wrap_rad = lib.scalar_param(m, "SkinWrapRadius", "Character", 0.55, 6600, 220)
+    skin_shadow_tint = lib.vector_param(m, "SkinShadowTint", "Character", (0.92, 0.72, 0.68, 1.0), 6600, 320)
+    skin_shadow_str = lib.scalar_param(m, "SkinShadowStrength", "Character", 0.0, 6600, 420)
+    cheek_warm_str = lib.scalar_param(m, "CheekWarmthStrength", "Character", 0.0, 6600, 520)
+    cheek_warm_col = lib.vector_param(m, "CheekWarmthColor", "Character", (1.0, 0.72, 0.62, 1.0), 6600, 620)
+    cheek_warm_bias = lib.scalar_param(m, "CheekWarmthBias", "Character", 0.55, 6600, 720)
+    eye_hi_str = lib.scalar_param(m, "EyeHighlightStrength", "Character", 0.0, 6600, 820)
+    eye_hi_pow = lib.scalar_param(m, "EyeHighlightPower", "Character", 48.0, 6600, 920)
+    eye_hi_col = lib.vector_param(m, "EyeHighlightColor", "Character", (1.0, 1.0, 1.0, 1.0), 6600, 1020)
+    hair_sheen_str = lib.scalar_param(m, "HairSheenStrength", "Character", 0.0, 6600, 1120)
+    hair_sheen_pow = lib.scalar_param(m, "HairSheenPower", "Character", 10.0, 6600, 1220)
+    hair_sheen_tint = lib.vector_param(m, "HairSheenTint", "Character", (0.95, 0.92, 0.88, 1.0), 6600, 1320)
+
+    wrap_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 6840, 200)
+    wire("wrap_mulA", skin_wrap_rad, wrap_mul, "A")
+    wire("wrap_mulB", skin_wrap_str, wrap_mul, "B")
+    wrap_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 7000, 120)
+    wire("wrap_addA", ndotl, wrap_add, "A")
+    wire("wrap_addB", wrap_mul, wrap_add, "B")
+    wrap_den = lib.create_expression(m, unreal.MaterialExpressionAdd, 6840, 280)
+    wire("wrap_denA", const1(m, 6680, 280, 1.0), wrap_den, "A")
+    wire("wrap_denB", skin_wrap_rad, wrap_den, "B")
+    wrap_div = lib.create_expression(m, unreal.MaterialExpressionDivide, 7160, 160)
+    wire("wrap_divA", wrap_add, wrap_div, "A")
+    wire("wrap_divB", wrap_den, wrap_div, "B")
+    wrap_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 7320, 160)
+    WIRES["wrap_sat"] = lib.connect_unary(wrap_div, wrap_sat)
+    std_lit = lib.create_expression(m, unreal.MaterialExpressionSaturate, 7160, 280)
+    WIRES["std_lit"] = lib.connect_unary(ndotl, std_lit)
+    skin_lit = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 7480, 200)
+    wire("skin_litA", std_lit, skin_lit, "A")
+    wire("skin_litB", wrap_sat, skin_lit, "B")
+    wire("skin_lit_alpha", skin_wrap_str, skin_lit, "Alpha")
+    skin_shadow = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 7000, 120)
+    WIRES["skin_sh_in"] = lib.connect_unary(skin_lit, skin_shadow)
+    skin_sh_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7160, 120)
+    wire("skin_shA", skin_shadow, skin_sh_amt, "A")
+    skin_sh_gate = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7000, 240)
+    wire("skin_shgA", skin_shadow_str, skin_sh_gate, "A")
+    wire("skin_shgB", skin_wrap_str, skin_sh_gate, "B")
+    wire("skin_shB", skin_sh_gate, skin_sh_amt, "B")
+    skin_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 7320, 80)
+    wire("skin_cA", final_color, skin_col, "A")
+    wire("skin_cB", skin_shadow_tint, skin_col, "B")
+    wire("skin_c_alpha", skin_sh_amt, skin_col, "Alpha")
+    final_color = skin_col
+
+    vert_n = lib.create_expression(m, unreal.MaterialExpressionVertexNormalWS, 6840, 360)
+    cheek_up = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, 6840, 480)
+    cheek_up.set_editor_property("constant", unreal.LinearColor(0.0, 1.0, 0.35, 1.0))
+    cheek_dot = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 7000, 400)
+    wire("cheek_dotA", vert_n, cheek_dot, "A")
+    wire("cheek_dotB", cheek_up, cheek_dot, "B")
+    cheek_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 7160, 400)
+    wire("cheek_sat", cheek_dot, cheek_sat, "Input")
+    cheek_pow = lib.create_expression(m, unreal.MaterialExpressionPower, 7320, 400)
+    wire("cheek_powA", cheek_sat, cheek_pow, "Base")
+    wire("cheek_powB", cheek_warm_bias, cheek_pow, "Exp")
+    cheek_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7480, 400)
+    wire("cheek_amtA", cheek_pow, cheek_amt, "A")
+    wire("cheek_amtB", cheek_warm_str, cheek_amt, "B")
+    cheek_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 7640, 360)
+    wire("cheek_cA", final_color, cheek_col, "A")
+    wire("cheek_cB", cheek_warm_col, cheek_col, "B")
+    wire("cheek_c_alpha", cheek_amt, cheek_col, "Alpha")
+    final_color = cheek_col
+
+    view_ws = lib.create_expression(m, unreal.MaterialExpressionCameraVectorWS, 6840, 640)
+    view_neg = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7000, 640)
+    wire("view_negA", view_ws, view_neg, "A")
+    wire("view_negB", const1(m, 6840, 760, -1.0), view_neg, "B")
+    eye_dp = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 7160, 640)
+    wire("eye_dpA", pnormal, eye_dp, "A")
+    wire("eye_dpB", view_neg, eye_dp, "B")
+    eye_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 7320, 640)
+    wire("eye_sat", eye_dp, eye_sat, "Input")
+    eye_pow = lib.create_expression(m, unreal.MaterialExpressionPower, 7480, 640)
+    wire("eye_powA", eye_sat, eye_pow, "Base")
+    wire("eye_powB", eye_hi_pow, eye_pow, "Exp")
+    eye_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7640, 640)
+    wire("eye_mA", eye_pow, eye_m, "A")
+    wire("eye_mB", eye_hi_str, eye_m, "B")
+    eye_e = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7800, 640)
+    wire("eye_eA", eye_m, eye_e, "A")
+    wire("eye_eB", eye_hi_col, eye_e, "B")
+
+    hair_xy = world_xy(m, 6840, 820)
+    hair_x = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 7000, 820)
+    hair_x.set_editor_property("r", True)
+    hair_x.set_editor_property("g", False)
+    hair_x.set_editor_property("b", False)
+    hair_x.set_editor_property("a", False)
+    wire("hair_x", hair_xy, hair_x, "")
+    hair_phase = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7160, 820)
+    wire("hair_phA", hair_x, hair_phase, "A")
+    wire("hair_phB", const1(m, 7000, 940, 8.0), hair_phase, "B")
+    hair_sin = lib.create_expression(m, unreal.MaterialExpressionSine, 7320, 820)
+    hair_sin.set_editor_property("period", 1.0)
+    WIRES["hair_sin"] = lib.connect_unary(hair_phase, hair_sin)
+    hair_abs = lib.create_expression(m, unreal.MaterialExpressionAbs, 7480, 820)
+    WIRES["hair_abs"] = lib.connect_unary(hair_sin, hair_abs)
+    hair_pow = lib.create_expression(m, unreal.MaterialExpressionPower, 7480, 820)
+    wire("hair_powA", hair_abs, hair_pow, "Base")
+    wire("hair_powB", hair_sheen_pow, hair_pow, "Exp")
+    hair_view = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 7640, 900)
+    wire("hair_vA", pnormal, hair_view, "A")
+    wire("hair_vB", view_neg, hair_view, "B")
+    hair_view_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 7800, 900)
+    WIRES["hair_vsat"] = lib.connect_unary(hair_view, hair_view_sat)
+    hair_spec = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7960, 860)
+    wire("hair_spA", hair_pow, hair_spec, "A")
+    wire("hair_spB", hair_view_sat, hair_spec, "B")
+    hair_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 8120, 860)
+    wire("hair_mA", hair_spec, hair_m, "A")
+    wire("hair_mB", hair_sheen_str, hair_m, "B")
+    hair_e = lib.create_expression(m, unreal.MaterialExpressionMultiply, 8120, 840)
+    wire("hair_eA", hair_m, hair_e, "A")
+    wire("hair_eB", hair_sheen_tint, hair_e, "B")
+
+    # --- Elemental: Genshin-style element grade + time-of-day warmth ---
+    element_type = lib.scalar_param(m, "ElementType", "Elemental", 0.0, 6600, 1500)
+    element_str = lib.scalar_param(m, "ElementStrength", "Elemental", 0.0, 6600, 1600)
+    element_emis = lib.scalar_param(m, "ElementEmissiveBoost", "Elemental", 0.0, 6600, 1700)
+    tod_warmth = lib.scalar_param(m, "TimeOfDayWarmth", "Elemental", 0.0, 6600, 1800)
+
+    pyro_c = const3(m, 6680, 1420, 1.0, 0.42, 0.18)
+    hydro_c = const3(m, 6680, 1500, 0.22, 0.62, 0.98)
+    anemo_c = const3(m, 6680, 1580, 0.55, 0.92, 0.82)
+    electro_c = const3(m, 6680, 1660, 0.62, 0.38, 0.95)
+    dendro_c = const3(m, 6680, 1740, 0.42, 0.82, 0.28)
+    geo_c = const3(m, 6680, 1820, 0.92, 0.78, 0.32)
+
+    w_pyro = style_peak(m, element_type, 1.0, "el_pyro", 6840, 1420)
+    w_hydro = style_peak(m, element_type, 2.0, "el_hydro", 6840, 1500)
+    w_anemo = style_peak(m, element_type, 3.0, "el_anemo", 6840, 1580)
+    w_electro = style_peak(m, element_type, 4.0, "el_electro", 6840, 1660)
+    w_dendro = style_peak(m, element_type, 5.0, "el_dendro", 6840, 1740)
+    w_geo = style_peak(m, element_type, 6.0, "el_geo", 6840, 1820)
+
+    el_mix_a = lib.create_expression(m, unreal.MaterialExpressionAdd, 7000, 1480)
+    wire("el_maA", w_pyro, el_mix_a, "A")
+    wire("el_maB", w_hydro, el_mix_a, "B")
+    el_mix_b = lib.create_expression(m, unreal.MaterialExpressionAdd, 7160, 1540)
+    wire("el_mbA", el_mix_a, el_mix_b, "A")
+    wire("el_mbB", w_anemo, el_mix_b, "B")
+    el_mix_c = lib.create_expression(m, unreal.MaterialExpressionAdd, 7320, 1600)
+    wire("el_mcA", el_mix_b, el_mix_c, "A")
+    wire("el_mcB", w_electro, el_mix_c, "B")
+    el_mix_d = lib.create_expression(m, unreal.MaterialExpressionAdd, 7480, 1660)
+    wire("el_mdA", el_mix_c, el_mix_d, "A")
+    wire("el_mdB", w_dendro, el_mix_d, "B")
+    el_mix = lib.create_expression(m, unreal.MaterialExpressionAdd, 7640, 1720)
+    wire("el_mA", el_mix_d, el_mix, "A")
+    wire("el_mB", w_geo, el_mix, "B")
+
+    el_c1 = lerp3(m, pyro_c, hydro_c, w_hydro, "el_c1", 7800, 1460)
+    el_c2 = lerp3(m, el_c1, anemo_c, w_anemo, "el_c2", 7960, 1520)
+    el_c3 = lerp3(m, el_c2, electro_c, w_electro, "el_c3", 8120, 1580)
+    el_c4 = lerp3(m, el_c3, dendro_c, w_dendro, "el_c4", 8280, 1640)
+    el_tint = lerp3(m, el_c4, geo_c, w_geo, "el_tint", 8440, 1700)
+    el_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, 8600, 1680)
+    wire("el_wA", el_mix, el_w, "A")
+    wire("el_wB", element_str, el_w, "B")
+    el_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 8760, 1640)
+    wire("el_colA", final_color, el_col, "A")
+    wire("el_colB", el_tint, el_col, "B")
+    wire("el_col_alpha", el_w, el_col, "Alpha")
+    final_color = el_col
+    el_emis_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 8760, 1780)
+    wire("el_emA", el_w, el_emis_m, "A")
+    wire("el_emB", element_emis, el_emis_m, "B")
+    el_emis_e = lib.create_expression(m, unreal.MaterialExpressionMultiply, 8920, 1780)
+    wire("el_emisA", el_emis_m, el_emis_e, "A")
+    wire("el_emisB", el_tint, el_emis_e, "B")
+
+    tod_neutral = const3(m, 6840, 1920, 1.0, 1.0, 1.0)
+    tod_warm_vec = const3(m, 6840, 1980, 1.12, 1.0, 0.92)
+    tod_cool_vec = const3(m, 6840, 2040, 0.94, 1.0, 1.06)
+    tod_neg = lib.create_expression(m, unreal.MaterialExpressionMultiply, 6680, 2120)
+    wire("tod_negA", tod_warmth, tod_neg, "A")
+    wire("tod_negB", const1(m, 6520, 2120, -1.0), tod_neg, "B")
+    warm_amt = lib.create_expression(m, unreal.MaterialExpressionMax, 7000, 1920)
+    wire("warm_amtA", tod_warmth, warm_amt, "A")
+    wire("warm_amtB", const1(m, 6840, 2020, 0.0), warm_amt, "B")
+    cool_amt = lib.create_expression(m, unreal.MaterialExpressionMax, 7000, 2080)
+    wire("cool_amtA", tod_neg, cool_amt, "A")
+    wire("cool_amtB", const1(m, 6840, 2180, 0.0), cool_amt, "B")
+    tod_warm_blend = lerp3(m, tod_neutral, tod_warm_vec, warm_amt, "tod_warm", 7160, 1960)
+    tod_vec = lerp3(m, tod_warm_blend, tod_cool_vec, cool_amt, "tod_vec", 7320, 2020)
+
+    # --- UDS sync: UltraDynamicWeather_Parameters MPC (live Time of Day / Sun Vector) ---
+    uds_mpc = "/Game/UltraDynamicSky/Materials/Weather/UltraDynamicWeather_Parameters"
+    uds_dtn_color = (
+        "/Game/UltraDynamicSky/Materials/Material_Functions/Sky_Utilities/Day_to_Night_Color"
+    )
+    uds_leaf = "UltraDynamicWeather_Parameters"
+    uds_ok = unreal.EditorAssetLibrary.does_asset_exist(f"{uds_mpc}.{uds_leaf}")
+    use_uds_tod = static_switch(m, "UseUDSTimeOfDay", "TimeOfDay", 6360, 1880, default=False)
+    tod_mpc_str = lib.scalar_param(m, "TimeOfDayMPCStrength", "TimeOfDay", 1.0, 6360, 1980)
+    tod_vec_final = tod_vec
+    if uds_ok:
+        mf_color = mf_call(m, uds_dtn_color, 6520, 1860)
+        if mf_color:
+            wire("uds_day", tod_warm_vec, mf_color, "Day", "Daytime", "Day Value")
+            wire("uds_night", tod_cool_vec, mf_color, "Night", "Nighttime", "Night Value")
+            uds_blend = lerp3(m, tod_vec, mf_color, tod_mpc_str, "uds_tod_blend", 6680, 1920)
+            WIRES["uds_tod_sw"] = lib.connect_static_switch(use_uds_tod, uds_blend, tod_vec)
+            tod_vec_final = use_uds_tod
+            unreal.log("[Universal] UDS TimeOfDay MPC sync wired (UseUDSTimeOfDay static switch)")
+        else:
+            unreal.log_warning("[Universal] Day_to_Night_Color missing — UDS sync skipped")
+    else:
+        unreal.log_warning(
+            "[Universal] UltraDynamicWeather_Parameters not found — manual TimeOfDayWarmth only"
+        )
+
+    tod_col = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7480, 2000)
+    wire("tod_cA", final_color, tod_col, "A")
+    wire("tod_cB", tod_vec_final, tod_col, "B")
+    final_color = tod_col
+
+    # --- World: wetness, snow dusting, moss concavity ---
+    wet_str = lib.scalar_param(m, "WetnessStrength", "World", 0.0, 9000, 120)
+    wet_rough = lib.scalar_param(m, "WetnessRoughness", "World", 0.12, 9000, 220)
+    wet_dark = lib.scalar_param(m, "WetnessDarken", "World", 0.38, 9000, 320)
+    wet_flat = lib.scalar_param(m, "WetnessNormalFlatten", "World", 0.65, 9000, 420)
+    snow_str = lib.scalar_param(m, "SnowDustStrength", "World", 0.0, 9000, 520)
+    snow_col = lib.vector_param(m, "SnowDustColor", "World", (0.92, 0.95, 0.98, 1.0), 9000, 620)
+    snow_bias = lib.scalar_param(m, "SnowUpBias", "World", 2.2, 9000, 720)
+    moss_str = lib.scalar_param(m, "MossConcavityStrength", "World", 0.0, 9000, 820)
+    moss_col = lib.vector_param(m, "MossColor", "World", (0.28, 0.42, 0.22, 1.0), 9000, 920)
+    moss_sens = lib.scalar_param(m, "MossCurvatureSens", "World", 1.8, 9000, 1020)
+
+    up_n = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, 9160, 120)
+    up_n.set_editor_property("constant", unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    wet_up = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 9320, 120)
+    wire("wet_upA", pnormal, wet_up, "A")
+    wire("wet_upB", up_n, wet_up, "B")
+    wet_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 9480, 120)
+    wire("wet_inv", wet_up, wet_inv, "Input")
+    wet_mask = lib.create_expression(m, unreal.MaterialExpressionMultiply, 9640, 120)
+    wire("wet_mA", wet_inv, wet_mask, "A")
+    wire("wet_mB", wet_str, wet_mask, "B")
+    rough_wet = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 9800, 80)
+    wire("rw_A", rough_gold, rough_wet, "A")
+    wire("rw_B", wet_rough, rough_wet, "B")
+    wire("rw_alpha", wet_mask, rough_wet, "Alpha")
+    rough_gold = rough_wet
+    wet_dark_f = lib.create_expression(m, unreal.MaterialExpressionAdd, 9640, 240)
+    wire("wd_fA", const1(m, 9480, 340, 1.0), wet_dark_f, "A")
+    wet_d_neg = lib.create_expression(m, unreal.MaterialExpressionMultiply, 9480, 280)
+    wire("wd_nA", wet_dark, wet_d_neg, "A")
+    wire("wd_nB", const1(m, 9320, 340, -1.0), wet_d_neg, "B")
+    wire("wd_fB", wet_d_neg, wet_dark_f, "B")
+    wet_dark_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 9800, 220)
+    wire("wdm_A", final_color, wet_dark_mul, "A")
+    wire("wdm_B", wet_dark_f, wet_dark_mul, "B")
+    wet_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 9960, 180)
+    wire("wc_A", final_color, wet_col, "A")
+    wire("wc_B", wet_dark_mul, wet_col, "B")
+    wire("wc_alpha", wet_mask, wet_col, "Alpha")
+    final_color = wet_col
+    flat_up = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, 9160, 380)
+    flat_up.set_editor_property("constant", unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    nrm_flat = lerp3(m, nrm, flat_up, wet_flat, "wet_nrm", 9320, 360)
+    nrm_wet = lerp3(m, nrm, nrm_flat, wet_mask, "wet_nrm2", 9480, 360)
+    nrm = nrm_wet
+
+    snow_up = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 9160, 520)
+    wire("snow_upA", pnormal, snow_up, "A")
+    wire("snow_upB", up_n, snow_up, "B")
+    snow_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 9320, 520)
+    wire("snow_sat", snow_up, snow_sat, "Input")
+    snow_pow = lib.create_expression(m, unreal.MaterialExpressionPower, 9480, 520)
+    wire("snow_powA", snow_sat, snow_pow, "Base")
+    wire("snow_powB", snow_bias, snow_pow, "Exp")
+    snow_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 9640, 520)
+    wire("snow_mA", snow_pow, snow_m, "A")
+    wire("snow_mB", snow_str, snow_m, "B")
+    snow_col_l = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 9800, 500)
+    wire("snow_cA", final_color, snow_col_l, "A")
+    wire("snow_cB", snow_col, snow_col_l, "B")
+    wire("snow_c_alpha", snow_m, snow_col_l, "Alpha")
+    final_color = snow_col_l
+
+    moss_mask = concavity_mask(m, curve_abs, moss_sens, "moss", 9160, 720)
+    moss_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 9480, 720)
+    wire("moss_amtA", moss_mask, moss_amt, "A")
+    wire("moss_amtB", moss_str, moss_amt, "B")
+    moss_col_l = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 9640, 700)
+    wire("moss_cA", final_color, moss_col_l, "A")
+    wire("moss_cB", moss_col, moss_col_l, "B")
+    wire("moss_c_alpha", moss_amt, moss_col_l, "Alpha")
+    final_color = moss_col_l
+
+    # --- Cinematic: contact rim, distance fade, dither dissolve edge ---
+    contact_rim_str = lib.scalar_param(m, "ContactRimStrength", "Cinematic", 0.0, 10200, 120)
+    contact_rim_pow = lib.scalar_param(m, "ContactRimPower", "Cinematic", 5.5, 10200, 220)
+    contact_rim_col = lib.vector_param(m, "ContactRimColor", "Cinematic", (1.0, 0.95, 0.88, 1.0), 10200, 320)
+    dist_fade_str = lib.scalar_param(m, "DistanceFadeStrength", "Cinematic", 0.0, 10200, 420)
+    dist_fade_start = lib.scalar_param(m, "DistanceFadeStart", "Cinematic", 4500.0, 10200, 520)
+    dist_fade_end = lib.scalar_param(m, "DistanceFadeEnd", "Cinematic", 18000.0, 10200, 620)
+    atmo_fade_col = lib.vector_param(m, "AtmosphericFadeColor", "Cinematic", (0.62, 0.72, 0.82, 1.0), 10200, 720)
+    dither_str = lib.scalar_param(m, "DitherDissolveStrength", "Cinematic", 0.0, 10200, 820)
+    dither_edge_glow = lib.scalar_param(m, "DitherEdgeGlow", "Cinematic", 2.5, 10200, 920)
+
+    contact_fres = lib.create_expression(m, unreal.MaterialExpressionFresnel, 10360, 120)
+    wire("contact_fexp", contact_rim_pow, contact_fres, "ExponentIn")
+    contact_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 10520, 120)
+    wire("contact_mA", contact_fres, contact_m, "A")
+    wire("contact_mB", contact_rim_str, contact_m, "B")
+    contact_e = lib.create_expression(m, unreal.MaterialExpressionMultiply, 10680, 120)
+    wire("contact_eA", contact_m, contact_e, "A")
+    wire("contact_eB", contact_rim_col, contact_e, "B")
+
+    cam_pos = lib.create_expression(m, unreal.MaterialExpressionCameraPositionWS, 10360, 360)
+    obj_pos = lib.create_expression(m, unreal.MaterialExpressionWorldPosition, 10360, 480)
+    dist_vec = lib.create_expression(m, unreal.MaterialExpressionSubtract, 10520, 420)
+    wire("dist_vA", obj_pos, dist_vec, "A")
+    wire("dist_vB", cam_pos, dist_vec, "B")
+    dist_len = lib.create_expression(m, unreal.MaterialExpressionLength, 10680, 420)
+    wire("dist_len", dist_vec, dist_len, "Input")
+    dist_rng = lib.create_expression(m, unreal.MaterialExpressionSubtract, 10840, 420)
+    wire("dist_rngA", dist_len, dist_rng, "A")
+    wire("dist_rngB", dist_fade_start, dist_rng, "B")
+    dist_span = lib.create_expression(m, unreal.MaterialExpressionSubtract, 10360, 560)
+    wire("dist_spanA", dist_fade_end, dist_span, "A")
+    wire("dist_spanB", dist_fade_start, dist_span, "B")
+    dist_norm = lib.create_expression(m, unreal.MaterialExpressionDivide, 11000, 420)
+    wire("dist_normA", dist_rng, dist_norm, "A")
+    wire("dist_normB", dist_span, dist_norm, "B")
+    dist_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 11160, 420)
+    wire("dist_sat", dist_norm, dist_sat, "Input")
+    dist_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 11320, 420)
+    wire("dist_amtA", dist_sat, dist_amt, "A")
+    wire("dist_amtB", dist_fade_str, dist_amt, "B")
+    dist_col = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 11480, 400)
+    wire("dist_cA", final_color, dist_col, "A")
+    wire("dist_cB", atmo_fade_col, dist_col, "B")
+    wire("dist_c_alpha", dist_amt, dist_col, "Alpha")
+    final_color = dist_col
+
+    pix_x = lib.create_expression(m, unreal.MaterialExpressionPixelDepth, 10360, 640)
+    pix_y = lib.create_expression(m, unreal.MaterialExpressionTime, 10360, 760)
+    dith_a = lib.create_expression(m, unreal.MaterialExpressionMultiply, 10520, 700)
+    wire("dith_aA", pix_x, dith_a, "A")
+    wire("dith_aB", const1(m, 10360, 880, 12.9898), dith_a, "B")
+    dith_b = lib.create_expression(m, unreal.MaterialExpressionMultiply, 10520, 820)
+    wire("dith_bA", pix_y, dith_b, "A")
+    wire("dith_bB", const1(m, 10360, 960, 78.233), dith_b, "B")
+    dith_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 10680, 760)
+    wire("dith_addA", dith_a, dith_add, "A")
+    wire("dith_addB", dith_b, dith_add, "B")
+    dith_sin = lib.create_expression(m, unreal.MaterialExpressionSine, 10840, 760)
+    dith_sin.set_editor_property("period", 1.0)
+    wire("dith_sin", dith_add, dith_sin, "Input")
+    dith_abs = lib.create_expression(m, unreal.MaterialExpressionFrac, 11000, 760)
+    wire("dith_frac", dith_sin, dith_abs, "Input")
+    dith_sub = lib.create_expression(m, unreal.MaterialExpressionSubtract, 11160, 720)
+    wire("dith_subA", mtransform, dith_sub, "A")
+    wire("dith_subB", dith_abs, dith_sub, "B")
+    dith_edge = lib.create_expression(m, unreal.MaterialExpressionAbs, 11320, 720)
+    wire("dith_edge", dith_sub, dith_edge, "Input")
+    dith_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 11480, 720)
+    dith_edge_s = lib.create_expression(m, unreal.MaterialExpressionMultiply, 11320, 840)
+    wire("dith_esA", dith_edge, dith_edge_s, "A")
+    wire("dith_esB", const1(m, 11160, 940, 18.0), dith_edge_s, "B")
+    wire("dith_inv_in", dith_edge_s, dith_inv, "Input")
+    dith_edge_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 11640, 720)
+    wire("dith_emA", dith_inv, dith_edge_m, "A")
+    dith_gate = lib.create_expression(m, unreal.MaterialExpressionMultiply, 11480, 860)
+    wire("dith_gA", dither_str, dith_gate, "A")
+    wire("dith_gB", mtransform, dith_gate, "B")
+    wire("dith_emB", dith_gate, dith_edge_m, "B")
+    dith_glow = lib.create_expression(m, unreal.MaterialExpressionMultiply, 11800, 720)
+    wire("dith_glA", dith_edge_m, dith_glow, "A")
+    wire("dith_glB", dither_edge_glow, dith_glow, "B")
+    dith_col = lib.create_expression(m, unreal.MaterialExpressionMultiply, 11960, 680)
+    wire("dith_cA", final_color, dith_col, "A")
+    wire("dith_cB", dith_inv, dith_col, "B")
+    dith_blend = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 12120, 660)
+    wire("dith_blA", final_color, dith_blend, "A")
+    wire("dith_blB", dith_col, dith_blend, "B")
+    wire("dith_bl_alpha", dither_str, dith_blend, "Alpha")
+    final_color = dith_blend
+
+    # character + elemental emissive additions
+    char_emis_a = lib.create_expression(m, unreal.MaterialExpressionAdd, 8280, 640)
+    wire("char_eA", eye_e, char_emis_a, "A")
+    wire("char_eB", hair_e, char_emis_a, "B")
+    char_emis_b = lib.create_expression(m, unreal.MaterialExpressionAdd, 8440, 700)
+    wire("char_e2A", char_emis_a, char_emis_b, "A")
+    wire("char_e2B", el_emis_e, char_emis_b, "B")
+    cine_emis_a = lib.create_expression(m, unreal.MaterialExpressionAdd, 12000, 200)
+    wire("cine_eA", contact_e, cine_emis_a, "A")
+    wire("cine_eB", dith_glow, cine_emis_a, "B")
+    emis_hoyo = lib.create_expression(m, unreal.MaterialExpressionAdd, 12160, 400)
+    wire("hoyo_eA", emissive, emis_hoyo, "A")
+    wire("hoyo_eB", char_emis_b, emis_hoyo, "B")
+    emissive = lib.create_expression(m, unreal.MaterialExpressionAdd, 12320, 480)
+    wire("hoyo_e2A", emis_hoyo, emissive, "A")
+    wire("hoyo_e2B", cine_emis_a, emissive, "B")
 
     profiles = lib.create_toon_profiles(["TP_Default", "TP_Gold", "TP_Stone"])
     toon = lib.create_expression(m, unreal.MaterialExpressionSubstrateToonBSDF, 4040, 480)
