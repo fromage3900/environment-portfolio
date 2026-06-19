@@ -874,6 +874,60 @@ def build():
     wire("ndA", nrm, nrm_det, "A"); wire("ndB", det_s, nrm_det, "B"); wire("ndAlpha", det_str, nrm_det, "Alpha")
     nrm = nrm_det
 
+    # ---- Magical-girl transform (group 'Magical', defaults off = no change) ----
+    mtransform = lib.scalar_param(m, "MagicalTransform", "Magical", 0.0, 4800, 120)   # 0->1 henshin driver
+    motif_mask = tex_object(m, "MotifMask", 4800, 200, "Magical")                      # assign T_Magic_Heart/Bow/Star
+    motif_scale = lib.scalar_param(m, "MotifScale", "Magical", 6.0, 4800, 360)
+    motif_color = lib.vector_param(m, "MotifColor", "Magical", (1.0, 0.45, 0.72, 1.0), 4800, 440)
+    transform_glow = lib.scalar_param(m, "TransformGlow", "Magical", 3.0, 4800, 520)
+    wipe_soft = lib.scalar_param(m, "WipeSoftness", "Magical", 0.25, 4800, 600)
+    magical_palette = lib.vector_param(m, "MagicalPalette", "Magical", (1.0, 0.72, 0.86, 1.0), 4800, 680)
+    # wipe sweep over world-Z, revealed by MagicalTransform
+    mg_wp = lib.create_expression(m, unreal.MaterialExpressionWorldPosition, 4800, 780)
+    mg_z = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 4960, 780)
+    mg_z.set_editor_property("r", False); mg_z.set_editor_property("g", False)
+    mg_z.set_editor_property("b", True); mg_z.set_editor_property("a", False)
+    wire("mg_z", mg_wp, mg_z, "")
+    mg_zs = lib.create_expression(m, unreal.MaterialExpressionMultiply, 5120, 780)
+    wire("mg_zsA", mg_z, mg_zs, "A"); wire("mg_zsB", const1(m, 4960, 880, 0.004), mg_zs, "B")
+    mg_sub = lib.create_expression(m, unreal.MaterialExpressionSubtract, 5280, 760)
+    wire("mg_subA", mtransform, mg_sub, "A"); wire("mg_subB", mg_zs, mg_sub, "B")
+    mg_div = lib.create_expression(m, unreal.MaterialExpressionDivide, 5440, 760)
+    wire("mg_divA", mg_sub, mg_div, "A"); wire("mg_divB", wipe_soft, mg_div, "B")
+    mg_wipe = lib.create_expression(m, unreal.MaterialExpressionSaturate, 5600, 760)
+    wire("mg_wipe", mg_div, mg_wipe, "Input", "")
+    # motif mask sample
+    mg_tc = lib.create_expression(m, unreal.MaterialExpressionTextureCoordinate, 4800, 980)
+    mg_uv = lib.create_expression(m, unreal.MaterialExpressionMultiply, 4960, 980)
+    wire("mg_uvA", mg_tc, mg_uv, "A"); wire("mg_uvB", motif_scale, mg_uv, "B")
+    mg_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, 5120, 980)
+    wire("mg_obj", motif_mask, mg_s, "Tex", "TextureObject")
+    wire("mg_suv", mg_uv, mg_s, "UVs", "Coordinates")
+    mg_sr = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 5280, 980)
+    mg_sr.set_editor_property("r", True); mg_sr.set_editor_property("g", False)
+    mg_sr.set_editor_property("b", False); mg_sr.set_editor_property("a", False)
+    wire("mg_sr", mg_s, mg_sr, "")
+    # reveal = wipe * motif * MagicalTransform
+    mg_rev1 = lib.create_expression(m, unreal.MaterialExpressionMultiply, 5760, 860)
+    wire("mg_rev1A", mg_wipe, mg_rev1, "A"); wire("mg_rev1B", mg_sr, mg_rev1, "B")
+    mg_rev = lib.create_expression(m, unreal.MaterialExpressionMultiply, 5920, 860)
+    wire("mg_revA", mg_rev1, mg_rev, "A"); wire("mg_revB", mtransform, mg_rev, "B")
+    # motif emissive = reveal * MotifColor * TransformGlow
+    mg_ec = lib.create_expression(m, unreal.MaterialExpressionMultiply, 6080, 860)
+    wire("mg_ecA", mg_rev, mg_ec, "A"); wire("mg_ecB", motif_color, mg_ec, "B")
+    mg_emis = lib.create_expression(m, unreal.MaterialExpressionMultiply, 6240, 860)
+    wire("mg_emisA", mg_ec, mg_emis, "A"); wire("mg_emisB", transform_glow, mg_emis, "B")
+    # palette shift toward MagicalPalette by MagicalTransform*0.5
+    mg_pal_amt = lib.create_expression(m, unreal.MaterialExpressionMultiply, 5760, 480)
+    wire("mg_palA", mtransform, mg_pal_amt, "A"); wire("mg_palB", const1(m, 5600, 560, 0.5), mg_pal_amt, "B")
+    mg_color = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 5920, 480)
+    wire("mg_colA", final_color, mg_color, "A"); wire("mg_colB", magical_palette, mg_color, "B"); wire("mg_colAlpha", mg_pal_amt, mg_color, "Alpha")
+    final_color = mg_color
+    # add motif emissive to the emissive sum
+    mg_emis_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 6400, 1100)
+    wire("mg_emis_addA", emissive, mg_emis_add, "A"); wire("mg_emis_addB", mg_emis, mg_emis_add, "B")
+    emissive = mg_emis_add
+
     profiles = lib.create_toon_profiles(["TP_Default", "TP_Gold", "TP_Stone"])
     toon = lib.create_expression(m, unreal.MaterialExpressionSubstrateToonBSDF, 4040, 480)
     lib.try_set_editor_property(toon, "toon_profile", profiles.get("TP_Default"))
