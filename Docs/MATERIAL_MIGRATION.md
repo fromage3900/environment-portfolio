@@ -258,8 +258,14 @@ Safe to re-run: rebuilds master/instances; reuses existing Toon Profiles.
 | **Nikki** | `InnerGlowColor`, `InnerGlowIntensity` | Center-weighted fill (1 − fresnel) |
 | **Nikki** | `FabricSheen`, `SheenTint`, `SheenPower` | Second fresnel lobe for satin / fabric |
 | **Nikki** | `BloomBoost` | Emissive multiplier for post bloom |
+| **Constellation** | `ConstellationRampLow/Mid/High`, `ConstellationStrength`, `ConstellationScale`, `ConstellationPhase` | World-space star grid drives lighting ramp |
+| **Gilding** | `GildingStrength`, `GoldTint`, `GoldRoughness`, `GoldEmissive`, `CurvatureSensitivity` | Gold leaf on high-curvature creases; boosts metallic |
+| **ShadowDream** | `ShadowDreamTint`, `ShadowDreamStrength`, `ShadowSoftness` | Pastel shadow tint (dream logic) |
+| **ShadowGarden** | `ShadowFlowerStrength`, `ShadowFlowerScale`, `ShadowFlowerColor` | Flowers bloom in shadow regions (emissive) |
+| **FairyDust** | `FairyMotifStyle` (0–4), `FairyDustIntensity`, `FairyDustScale`, `FairyDustColor`, `FairyHighlightThreshold`, `FairyGlyphMask` | Highlights become hearts / stars / flowers / moons |
+| **Surface** | `Metallic` | Procedural metallic; ORM.R when textured |
 
-Build: `py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_master_universal.py"` (close material tabs first).
+Themed instances (`setup_universal_instances.py`): `MI_Universal_DreamyPastel`, `MI_Universal_Constellation`, `MI_Universal_GoldLeaf`, `MI_Universal_FairyHearts`, `MI_Universal_FairyStars`, `MI_Universal_FairyGarden`, `MI_Universal_MoonlitMetal`.
 
 **`M_Master_Toon_Unified`** — feature-stack master (oil/temporal/ink/audio/gilding scalars, default 0). Environment instances under `Instances/Environment/MI_Env_*`.
 
