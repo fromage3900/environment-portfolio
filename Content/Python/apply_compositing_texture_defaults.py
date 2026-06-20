@@ -94,7 +94,6 @@ def main() -> int:
         "-stdout",
         "-unattended",
         "-nosplash",
-        "-DisablePlugins=Monolith",
         f"-log={log}",
     ]
     print(f"Compositing texture defaults -> {log}")

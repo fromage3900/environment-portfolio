@@ -23,7 +23,6 @@ def main() -> int:
         "-stdout",
         "-unattended",
         "-nosplash",
-        "-DisablePlugins=Monolith",
         f"-log={LOG}",
     ]
     print(f"Storybook rebuild -> {LOG}")

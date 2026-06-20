@@ -279,7 +279,6 @@ def main() -> int:
             "-stdout",
             "-unattended",
             "-nosplash",
-            "-DisablePlugins=Monolith",
             f"-log={log}",
         ]
         print(f"Material parameter audit -> {log}")

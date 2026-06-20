@@ -285,7 +285,7 @@ def main():
         cmd = [
             str(ue), str(root / "BS_GodFile.uproject"),
             f"-ExecutePythonScript={(root / 'Content/Python/setup_landscape_height_blend.py').as_posix()}",
-            "-stdout", "-unattended", "-nullrhi", "-DisablePlugins=Monolith",
+            "-stdout", "-unattended", "-nullrhi",
             f"-log={root / 'Saved/Logs/setup_landscape_height_blend.log'}",
         ]
         return subprocess.run(cmd, cwd=str(root)).returncode

@@ -7,7 +7,7 @@ does NOT touch graph topology, so it's safe and idempotent.
 
 Headless (editor closed, SCC can stay on — no asset create/delete):
   UnrealEditor-Cmd BS_GodFile.uproject
-    -ExecutePythonScript=".../organize_master_groups.py" -unattended -nullrhi -DisablePlugins=Monolith
+    -ExecutePythonScript=".../organize_master_groups.py" -unattended -nullrhi
 """
 from __future__ import annotations
 

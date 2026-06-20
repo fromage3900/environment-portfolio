@@ -268,7 +268,6 @@ def main() -> int:
         "-stdout",
         "-unattended",
         "-nosplash",
-        "-DisablePlugins=Monolith",
         f"-log={log}",
     ]
     print(f"Master review -> {log}")

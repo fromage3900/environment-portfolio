@@ -286,8 +286,12 @@
 			"Enabled": true
 		},
 		{
-			"Name": "Monolith",
+			"Name": "GameplayStateTree",
 			"Enabled": true
+		},
+		{
+			"Name": "Monolith",
+			"Enabled": false
 		}
 	]
 }

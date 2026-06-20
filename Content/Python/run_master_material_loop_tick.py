@@ -7,7 +7,7 @@ Headless (close editor first — avoids Error 32):
   set BS_MASTER_FORCE=1
   UnrealEditor-Cmd.exe BS_GodFile.uproject ^
     -ExecutePythonScript="G:/EnvironmentPortfolio/BS_GodFile/Content/Python/run_master_material_loop_tick.py" ^
-    -DisablePlugins=Monolith -unattended -nullrhi
+    -unattended -nullrhi
 """
 from __future__ import annotations
 
@@ -174,7 +174,6 @@ def main() -> int:
         "-stdout",
         "-unattended",
         "-nullrhi",
-        "-DisablePlugins=Monolith",
         f"-log={log}",
     ]
     print(f"Master texture loop tick -> {log}")

@@ -7,7 +7,7 @@ Does NOT delete instance folders — use archive_unused_instances.py for that.
 
 Headless:
   UnrealEditor-Cmd BS_GodFile.uproject -ExecutePythonScript=".../finalize_master_and_cleanup.py"
-    -unattended -nullrhi -DisablePlugins=Monolith
+    -unattended -nullrhi
 """
 from __future__ import annotations
 

@@ -207,7 +207,6 @@ def main():
             "-stdout",
             "-unattended",
             "-nullrhi",
-            "-DisablePlugins=Monolith",
             f"-log={root / 'Saved/Logs/setup_grand_water.log'}",
         ]
         return subprocess.run(cmd, cwd=str(root)).returncode
