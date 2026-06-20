@@ -31,7 +31,30 @@ SPARKLE_MASKS = {
     "bokeh": "/Game/Alphas_Sparkles/T_Spark_Bokeh.T_Spark_Bokeh",
 }
 
-# --- Fairy / magical motifs (FairyGlyphMask, MotifMask) ---
+# --- Japanese ornament alphas (70_Japanese_Ornament_Alphas_vfxMed) ---
+JRO_JP = "/Game/Textures/70_Japanese_Ornament_Alphas_vfxMed/70_Japanese_Ornament_Alphas/JRO_JP"
+
+
+def _jro_mask(stem: str) -> str:
+    base = f"{stem}_Mask" if not stem.endswith("_Mask") else stem
+    return f"{JRO_JP}/{base}.{base}"
+
+
+JAPANESE_ORNAMENT_MASKS = {
+    "zen01": [_jro_mask("JRO_JP_Ornament01_out")],
+    "zen03": [_jro_mask("JRO_JP_Ornament03_out")],
+    "zen07": [_jro_mask("JRO_JP_Ornament07_out")],
+    "zen23": [_jro_mask("JRO_JP_Ornament23_out")],
+    "zen30": [_jro_mask("JRO_JP_Ornament30_out")],
+    "zen35": [_jro_mask("JRO_JP_Ornament35_out")],
+    "baroque04": [_jro_mask("JRO_JP_Ornament04_out")],
+    "baroque08": [_jro_mask("JRO_JP_Ornament08_1_out")],
+    "baroque12": [_jro_mask("JRO_JP_Ornament12_out")],
+    "baroque19": [_jro_mask("JRO_JP_Ornament19_2_out")],
+    "baroque22": [_jro_mask("JRO_JP_Ornament22_1_out")],
+    "baroque41": [_jro_mask("JRO_JP_Ornament41_3_out")],
+}
+
 FAIRY_GLYPH_MASKS = {
     "heart": [
         "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
@@ -51,12 +74,16 @@ FAIRY_GLYPH_MASKS = {
     "bow": [
         "/Game/Magical/T_Magic_Bow.T_Magic_Bow",
     ],
+    "jro_zen": JAPANESE_ORNAMENT_MASKS["zen01"],
+    "jro_baroque": JAPANESE_ORNAMENT_MASKS["baroque04"],
 }
 
 MOTIF_MASKS = {
     "heart": FAIRY_GLYPH_MASKS["heart"],
     "star": FAIRY_GLYPH_MASKS["star"],
     "bow": FAIRY_GLYPH_MASKS["bow"],
+    "jro_zen": JAPANESE_ORNAMENT_MASKS["zen07"],
+    "jro_baroque": JAPANESE_ORNAMENT_MASKS["baroque12"],
 }
 
 # PNGs under _AssetLibrary to import into /Game when uasset is missing.

@@ -17,6 +17,33 @@ REPORT = PROJECT_ROOT / "Saved" / "Audit" / "compositing_texture_catalog.json"
 
 SDF = "/Game/EnvSandbox/Materials/SDF/Textures"
 TEX = "/Game/Textures"
+JRO = f"{TEX}/70_Japanese_Ornament_Alphas_vfxMed/70_Japanese_Ornament_Alphas/JRO_JP"
+
+
+def jro_mask(stem: str) -> str:
+    """Japanese ornament alpha mask path (vfxMed pack)."""
+    if stem.endswith("_Mask"):
+        base = stem
+    else:
+        base = f"{stem}_Mask"
+    return f"{JRO}/{base}.{base}"
+
+
+# Curated masks from 70_Japanese_Ornament_Alphas_vfxMed (baroque = ornate, zen = minimal)
+JAPANESE_ORNAMENT = {
+    "zen_minimal": jro_mask("JRO_JP_Ornament01_out"),
+    "zen_circle": jro_mask("JRO_JP_Ornament03_out"),
+    "zen_wave": jro_mask("JRO_JP_Ornament07_out"),
+    "zen_bamboo": jro_mask("JRO_JP_Ornament23_out"),
+    "zen_stone": jro_mask("JRO_JP_Ornament30_out"),
+    "zen_sand": jro_mask("JRO_JP_Ornament35_out"),
+    "baroque_filigree": jro_mask("JRO_JP_Ornament04_out"),
+    "baroque_scroll": jro_mask("JRO_JP_Ornament08_1_out"),
+    "baroque_rosette": jro_mask("JRO_JP_Ornament12_out"),
+    "baroque_lattice": jro_mask("JRO_JP_Ornament19_2_out"),
+    "baroque_mandala": jro_mask("JRO_JP_Ornament22_1_out"),
+    "baroque_cathedral": jro_mask("JRO_JP_Ornament41_3_out"),
+}
 
 # Schema targets (portfolio SDF folder)
 MARBLE = {
@@ -78,12 +105,17 @@ MASTER_TEXTURE_DEFAULTS: dict[str, list[str]] = {
         COMPOSITING["noise_fine"],
     ),
     "FairyGlyphMask": _chain(
+        JAPANESE_ORNAMENT["zen_minimal"],
+        JAPANESE_ORNAMENT["baroque_filigree"],
         "/Game/Sakura/T_Sakura_Petal.T_Sakura_Petal",
         "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
         MASK["voronoi_swirl"],
         COMPOSITING["abstract_a"],
     ),
     "MotifMask": _chain(
+        JAPANESE_ORNAMENT["baroque_rosette"],
+        JAPANESE_ORNAMENT["baroque_cathedral"],
+        JAPANESE_ORNAMENT["zen_wave"],
         "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
         "/Game/Magical/T_Magic_Bow.T_Magic_Bow",
         COMPOSITING["abstract_a"],
@@ -204,6 +236,42 @@ INSTANCE_TEXTURE_DEFAULTS: dict[str, dict[str, list[str]]] = {
         ),
         "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
     },
+    # Theme families — Baroque + Zen (see theme_instances.py)
+    "MI_Baroque_GildedFiligree": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["baroque_filigree"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["baroque_scroll"]),
+        "Albedo": _chain(MARBLE["warm_stone"], MARBLE["worn"]),
+    },
+    "MI_Baroque_CathedralSurreal": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["baroque_rosette"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["baroque_cathedral"]),
+    },
+    "MI_Baroque_EscherOrnament": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["baroque_lattice"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["baroque_mandala"]),
+    },
+    "MI_Baroque_FiligreeDream": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["baroque_cathedral"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["baroque_filigree"]),
+    },
+    "MI_Zen_MossGarden": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["zen_minimal"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["zen_circle"]),
+        "Albedo": _chain(MARBLE["dark"], MARBLE["cool_stone"]),
+    },
+    "MI_Zen_InkWash": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["zen_wave"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["zen_wave"]),
+        "Albedo": _chain(MARBLE["light"]),
+    },
+    "MI_Zen_BambooMist": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["zen_bamboo"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["zen_bamboo"]),
+    },
+    "MI_Zen_Karesansui": {
+        "MotifMask": _chain(JAPANESE_ORNAMENT["zen_sand"]),
+        "FairyGlyphMask": _chain(JAPANESE_ORNAMENT["zen_stone"]),
+    },
     "MI_Trimsheet_VariationCracks": {
         "Albedo": _chain(MARBLE["warm_stone"]),
         "LayerB_Albedo": _chain(COMPOSITING["crack_overlay"]),
@@ -272,6 +340,15 @@ INSTANCE_TEXTURE_RULES: list[tuple[tuple[str, ...], dict[str, list[str]]]] = [
             "Albedo": _chain(MARBLE["warm_stone"], MARBLE["worn"]),
             "HeightMap": _chain(MASK["voronoi_crack"], HEIGHT["perlin"]),
             "LayerB_Albedo": _chain(MASK["voronoi_swirl"], COMPOSITING["crack_overlay"]),
+            "MotifMask": _chain(
+                JAPANESE_ORNAMENT["baroque_filigree"],
+                JAPANESE_ORNAMENT["baroque_cathedral"],
+                JAPANESE_ORNAMENT["baroque_rosette"],
+            ),
+            "FairyGlyphMask": _chain(
+                JAPANESE_ORNAMENT["baroque_mandala"],
+                JAPANESE_ORNAMENT["baroque_scroll"],
+            ),
         },
     ),
     (
@@ -365,6 +442,23 @@ INSTANCE_TEXTURE_RULES: list[tuple[tuple[str, ...], dict[str, list[str]]]] = [
                 COMPOSITING["abstract_a"],
             ),
             "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
+        },
+    ),
+    (
+        ("zen", "karesansui", "torii", "bamboo", "mossgarden"),
+        {
+            "Albedo": _chain(MARBLE["cool_stone"], MARBLE["dark"]),
+            "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
+            "MotifMask": _chain(
+                JAPANESE_ORNAMENT["zen_minimal"],
+                JAPANESE_ORNAMENT["zen_stone"],
+                JAPANESE_ORNAMENT["zen_sand"],
+            ),
+            "FairyGlyphMask": _chain(
+                JAPANESE_ORNAMENT["zen_circle"],
+                JAPANESE_ORNAMENT["zen_wave"],
+                JAPANESE_ORNAMENT["zen_bamboo"],
+            ),
         },
     ),
     (

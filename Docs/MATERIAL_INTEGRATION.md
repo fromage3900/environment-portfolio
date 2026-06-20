@@ -92,7 +92,7 @@ Editor one-shot: `py ".../run_editor_integration.py"`
 
 ## Audit reports (local, gitignored)
 
-`Saved/Audit/`: `master_review.json`, `master_texture_loop.json`, `compositing_integration.json`, `compositing_texture_defaults.json`, `starter_instances.json`, `dead_material_nodes.json`, `ensure_portfolio_instances.json`, `substrate_toon_conversion.json`, `storybook_outline_build.json`
+`Saved/Audit/`: `master_review.json`, `master_texture_loop.json`, `master_param_loop.json`, `master_param_loop_state.json`, `master_param_catalog_audit.json`, `compositing_integration.json`, `compositing_texture_defaults.json`, `starter_instances.json`, `dead_material_nodes.json`, `ensure_portfolio_instances.json`, `substrate_toon_conversion.json`, `storybook_outline_build.json`
 
 ## Not in git
 
@@ -162,3 +162,110 @@ py Content/Python/run_master_material_loop_tick.py
 | `M_Master_Toon_Unified` | 3/3 on compositing + SDF marble; 0 banned |
 
 ORM slots use SDF marble packs (not Perlin height noise). Normal slots use compositing `Perlin_10` (no `DefaultNormal`).
+
+## Master parameter loop (group / desc / sort)
+
+**Scope:** Non-texture metadata on `M_Master_Toon_Universal` (scalar, vector, static switch). Texture wiring stays in the texture loop. SDF masters (`M_SDF_*`, `M_Master_SDF_Toon`, `M_Master_Toon_Unified`) get a Palette + Toon subset audit only.
+
+| Mechanism | Purpose |
+|-----------|---------|
+| `master_param_catalog.PARAM_REGISTRY` | Canonical param → `{group, desc, kind}` for universal master |
+| `master_param_catalog.ALL_GROUPS` | Professional MI editor panel sort order |
+| `scan_master_param_violations()` | Audit ungrouped, wrong_group, missing_desc, unknown, placeholders |
+| `apply_master_param_organization()` | Fix group, tooltip desc, sort_priority (metadata only) |
+| `is_master_organized()` | Success: 0 ungrouped, 0 wrong_group, missing_desc under threshold |
+| `run_master_param_loop_tick.py` | One idempotent loop pass; rotates 10 focus slices |
+
+**Run (editor open):**
+
+```text
+py Content/Python/run_master_param_loop_tick.py
+```
+
+**Run (headless, editor closed):**
+
+```text
+py Content/Python/run_master_param_loop_tick.py
+```
+
+(Outer launcher spawns `UnrealEditor-Cmd` when `unreal` is not importable.)
+
+**One-shot organize + audit:**
+
+```text
+py Content/Python/master_param_catalog.py
+```
+
+**State / audit paths:**
+
+- State: `Saved/Audit/master_param_loop_state.json` (`tick_index`, `last_focus`)
+- Report: `Saved/Audit/master_param_loop.json`
+- Catalog audit: `Saved/Audit/master_param_catalog_audit.json`
+
+**Success criteria:** `summary.organized` is `true` on `M_Master_Toon_Universal` in `master_param_loop.json` (0 ungrouped, 0 wrong_group, missing_desc ≤ threshold). Log: `Saved/Logs/master_param_loop.log`.
+
+**Focus rotation (10 ticks):** `audit_full` → `core_palette` → `layers_parallax` → `triplanar_temporal` → `nikki_character` → `celestial_shadow` → `magical_fairy` → `gilding_macro` → `world_elemental` → `cinematic_tod`.
+
+## Master parameter loop (scalar / vector / switch organization)
+
+**Scope:** All non-texture MI editor categories on `M_Master_Toon_Universal` — groups, tooltips, canonical naming. Textures stay on the 60s texture loop.
+
+| Mechanism | Purpose |
+|-----------|---------|
+| `master_param_catalog.PARAM_REGISTRY` | Canonical group + tooltip per param |
+| `scan_master_param_violations()` | Ungrouped, wrong group, missing desc |
+| `apply_master_param_organization()` | In-place group/desc fixes per focus |
+| `run_master_param_loop_tick.py` | Rotating 10-focus pass (180s cadence) |
+
+**Run (headless, editor closed):**
+
+```text
+py Content/Python/run_master_param_loop_tick.py
+```
+
+**Audit:** `Saved/Audit/master_param_loop.json` — success when `summary.organized` is true (`organization_score` ≥ 0.95, 0 ungrouped, 0 wrong group).
+
+**Focus rotation (tick % 10):** `audit_full` → `core_palette` → `layers_parallax` → `triplanar_temporal` → `nikki_character` → `celestial_shadow` → `magical_fairy` → `gilding_macro` → `world_elemental` → `cinematic_tod`.
+
+### Param loop tick #0 (2026-06-20)
+
+| Check | Universal master |
+|-------|------------------|
+| `summary.organized` | **true** |
+| Ungrouped / wrong group | 0 / 0 |
+| Numbered MI panels | `organize_master_groups.py` every tick (01–21 panel order) |
+| Catalog | `master_param_catalog.py` — groups, sort_priority, tooltips |
+
+**Loops running:** `AGENT_LOOP_TICK_master_texture` (60s) + `AGENT_LOOP_TICK_master_params` (180s). Close editor before headless ticks to avoid Error 32.
+
+## Environment specialists (landscape + water)
+
+| Master | Role | Build |
+|--------|------|-------|
+| `M_Master_Toon_Landscape_HeightBlend` | Toon terrain — triplanar Rock/Grass/Mud height competition + slope cliffs + snow | `py Content/Python/setup_landscape_height_blend.py` |
+| `M_Water_Master_Grand_v6` | **Canonical grand water** — Gerstner waves, caustics, magical intensity | `py Content/Python/setup_master_water.py` |
+
+**Do not use** `M_Master_Toon_Water` — deprecated duplicate. Expand grand water only.
+
+**Instances:** `MI_GrandWater_OceanDeep`, `MI_GrandWater_RiverClear`, `MI_GrandWater_PondStylized` → `Instances/Water/`
+
+```text
+python Content/Python/setup_master_water.py
+```
+
+**Audit:** `Saved/Audit/grand_water_expand.json`
+
+## Japanese ornament textures + themed instances
+
+**Source pack:** `/Game/Textures/70_Japanese_Ornament_Alphas_vfxMed` (52 `JRO_JP_Ornament*` alpha masks).
+
+Wired into `M_Master_Toon_Universal` `MotifMask` / `FairyGlyphMask` defaults via `portfolio_texture_catalog.py` (`JAPANESE_ORNAMENT`).
+
+**Theme instances** (8) — `py Content/Python/apply_theme_instances.py`:
+
+| Folder | Instances |
+|--------|-----------|
+| `Instances/Environment/Baroque/` | `MI_Baroque_GildedFiligree`, `MI_Baroque_CathedralSurreal`, `MI_Baroque_EscherOrnament`, `MI_Baroque_FiligreeDream` |
+| `Instances/Environment/Zen/` | `MI_Zen_MossGarden`, `MI_Zen_InkWash`, `MI_Zen_BambooMist`, `MI_Zen_Karesansui` |
+
+**Audit:** `Saved/Audit/theme_instances.json`
