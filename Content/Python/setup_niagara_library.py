@@ -17,7 +17,7 @@ LIBRARY LAYOUT
 /Game/EnvSandbox/VFX/
   MPC/                 MPC_Magical (henshin driver for materials + BP/Sequencer sync)
   Systems/Ambient/     NS_FairyDust, NS_ConstellationTwinkle, NS_EmberMotes
-  Systems/Sakura/      NS_SakuraPetals (+ setup_sakura_niagara.py for full 6-system kit)
+  Systems/Sakura/      NS_Sakura* (6-system kit; full build via setup_sakura_niagara.py)
   Systems/Magical/     NS_MagicalHenshinBurst, NS_MagicTrail
   _Showcase/           optional L_VFX_Showcase (spawn grid when --showcase)
 
@@ -93,6 +93,40 @@ NIAGARA_EMITTER_ROOT = "/Niagara/DefaultAssets/Templates/Emitters"
 MCP_HOST = "127.0.0.1"
 MCP_PORT = 55557
 
+ENGINE_SYSTEM_TEMPLATES: dict[str, list[str]] = {
+    "Fountain": [
+        "/Niagara/DefaultAssets/Templates/Systems/FountainLightweight.FountainLightweight",
+        "/Niagara/DefaultAssets/Templates/Systems/FountainLightweight",
+        "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
+    ],
+    "HangingParticulates": [
+        "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
+        "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight",
+        "/Niagara/DefaultAssets/DefaultSystem.DefaultSystem",
+    ],
+    "OmnidirectionalBurst": [
+        "/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst",
+        "/Niagara/DefaultAssets/Templates/Systems/RadialBurst",
+        "/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst.DirectionalBurst",
+    ],
+    "LocationBasedRibbon": [
+        "/Niagara/DefaultAssets/Templates/Systems/AttributeReaderTrails.AttributeReaderTrails",
+        "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
+    ],
+    "floating_dust": [
+        "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
+        "/Niagara/DefaultAssets/DefaultSystem.DefaultSystem",
+    ],
+}
+
+TEMPLATE_NAME_HINTS: dict[str, tuple[str, ...]] = {
+    "Fountain": ("FountainLightweight", "Fountain", "MinimalLightweight"),
+    "HangingParticulates": ("HangingParticulates", "MinimalLightweight", "DefaultSystem"),
+    "OmnidirectionalBurst": ("RadialBurst", "DirectionalBurst", "Burst"),
+    "LocationBasedRibbon": ("AttributeReaderTrails", "Ribbon", "Trails"),
+    "floating_dust": ("MinimalLightweight", "FloatingDust", "DefaultSystem"),
+}
+
 
 @dataclass(frozen=True)
 class NiagaraSystemSpec:
@@ -136,7 +170,47 @@ SYSTEMS: tuple[NiagaraSystemSpec, ...] = (
         f"{NIAGARA_EMITTER_ROOT}/Fountain",
         theme="sakura petal drift",
         paired_materials=("MI_Sakura_Blossom", "MI_Sakura_Petal"),
+        user_params=("User.SpawnRate", "User.WindStrength", "User.Color"),
+    ),
+    NiagaraSystemSpec(
+        "NS_SakuraGroundPetals",
+        SYSTEMS_SAKURA,
+        atmospheric_preset="floating_dust",
+        theme="fallen petals on path",
+        paired_materials=("MI_Sakura_Petals",),
         user_params=("User.SpawnRate", "User.Color"),
+    ),
+    NiagaraSystemSpec(
+        "NS_SakuraDreamSparkle",
+        SYSTEMS_SAKURA,
+        f"{NIAGARA_EMITTER_ROOT}/HangingParticulates",
+        theme="Nikki air shimmer under canopy",
+        paired_materials=("MI_Sakura_Blossom",),
+        user_params=("User.SpawnRate", "User.Color"),
+    ),
+    NiagaraSystemSpec(
+        "NS_SakuraLanternMotes",
+        SYSTEMS_SAKURA,
+        atmospheric_preset="floating_dust",
+        theme="warm motes at stone lantern",
+        paired_materials=("MI_Sakura_Lantern",),
+        user_params=("User.SpawnRate", "User.Color"),
+    ),
+    NiagaraSystemSpec(
+        "NS_SakuraPondShimmer",
+        SYSTEMS_SAKURA,
+        f"{NIAGARA_EMITTER_ROOT}/HangingParticulates",
+        theme="pond surface sparkle",
+        paired_materials=("MI_Sakura_Water",),
+        user_params=("User.SpawnRate", "User.Color"),
+    ),
+    NiagaraSystemSpec(
+        "NS_SakuraPetalGust",
+        SYSTEMS_SAKURA,
+        f"{NIAGARA_EMITTER_ROOT}/OmnidirectionalBurst",
+        theme="wind gust burst",
+        paired_materials=("MI_Sakura_Petals",),
+        user_params=("User.BurstScale", "User.Color"),
     ),
     NiagaraSystemSpec(
         "NS_MagicalHenshinBurst",
@@ -204,10 +278,77 @@ def _mcp_ping(retries: int = 5, delay_sec: float = 1.0) -> bool:
     return False
 
 
+def _template_key(spec: NiagaraSystemSpec) -> str:
+    if spec.atmospheric_preset:
+        return spec.atmospheric_preset
+    if spec.template_emitter:
+        return spec.template_emitter.rsplit("/", 1)[-1].split(".", 1)[0]
+    return "DefaultSystem"
+
+
+def _discover_engine_templates(key: str) -> list[str]:
+    import unreal
+
+    hints = TEMPLATE_NAME_HINTS.get(key, (key,))
+    static = list(ENGINE_SYSTEM_TEMPLATES.get(key, []))
+    found: list[str] = []
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        ar.search_all_assets(True)
+        filt = unreal.ARFilter(
+            class_names=["NiagaraSystem"],
+            package_paths=["/Niagara"],
+            recursive_paths=True,
+        )
+        for data in ar.get_assets(filt):
+            name = str(data.asset_name)
+            if not any(h.lower() in name.lower() for h in hints):
+                continue
+            pkg = str(data.package_name)
+            for candidate in (f"{pkg}.{name}", pkg):
+                if unreal.EditorAssetLibrary.does_asset_exist(candidate):
+                    found.append(candidate)
+    except Exception as exc:
+        unreal.log_warning(f"[VFX] template registry scan: {exc}")
+
+    merged: list[str] = []
+    for path in static + found:
+        if path not in merged:
+            merged.append(path)
+    return merged
+
+
+def _create_from_engine_system(spec: NiagaraSystemSpec) -> str:
+    import unreal
+
+    try:
+        unreal.AssetRegistryHelpers.get_asset_registry().search_all_assets(True)
+    except Exception:
+        pass
+
+    path = _asset_path(spec.folder, spec.name)
+    key = _template_key(spec)
+    for src in _discover_engine_templates(key):
+        if not unreal.EditorAssetLibrary.does_asset_exist(src):
+            continue
+        if unreal.EditorAssetLibrary.does_asset_exist(path):
+            unreal.EditorAssetLibrary.delete_asset(path)
+        dup = unreal.EditorAssetLibrary.duplicate_asset(src, path)
+        if dup:
+            unreal.log(f"[VFX] built {path} from engine template {src}")
+            return path
+    raise RuntimeError(f"No engine NiagaraSystem template for {spec.name} (key={key})")
+
+
 def _duplicate_seed(spec: NiagaraSystemSpec) -> str:
     import unreal
 
     path = _asset_path(spec.folder, spec.name)
+    try:
+        return _create_from_engine_system(spec)
+    except Exception as engine_exc:
+        unreal.log_warning(f"[VFX] engine template failed for {spec.name}: {engine_exc}")
+
     if spec.atmospheric_preset:
         seed = _asset_path(SYSTEMS_AMBIENT, "NS_EmberMotes")
     elif spec.template_emitter and "Ribbon" in spec.template_emitter:

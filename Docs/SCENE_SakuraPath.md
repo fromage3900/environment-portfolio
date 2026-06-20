@@ -92,8 +92,12 @@ Legacy note: fallen petals on path + grass were originally one bullet; Niagara h
 | `NS_SakuraPondShimmer` | Sparkle sheet over koi pond | `MI_Niagara_Pond` (JRO zen35/zen30 sand/stone) |
 | `NS_SakuraPetalGust` | One-shot wind gust burst | `MI_Niagara_Gust` (petal + JRO zen23 bamboo) |
 
-- **MPC:** `MPC_SakuraDream` — `WindStrength`, `GustTrigger`, `SparklePulse`, `PetalDensity`
-- **Build:** `py Content/Python/setup_sakura_niagara.py` (MCP preferred for Fountain/Burst templates)
+- **MPC:** `MPC_SakuraDream` — `WindStrength`, `GustTrigger`, `SparklePulse`, `PetalDensity` (wired into `M_Niagara_SakuraSprite` emissive/opacity)
+- **Build:** `py Content/Python/run_sakura_niagara_plan.py` (full prerequisites + kit + spawn + validate)
+- **MCP:** UnrealMCP **55557** when editor is open; Monolith **9316** unavailable until plugin is rebuilt (see `Docs/MATERIAL_INTEGRATION.md`)
+- **Kit only:** `py Content/Python/setup_sakura_niagara.py` (`--rebuild` deletes all six systems and recreates via MCP or portfolio seeds)
+- **Validate:** `py Content/Python/validate_sakura_niagara.py` → `Saved/Audit/sakura_niagara_validation.json`
+- **Showcase:** `py Content/Python/run_sakura_niagara_plan.py --showcase` → `L_VFX_SakuraShowcase`
 - **Magical burst (henshin):** `NS_MagicalHenshinBurst` — separate from sakura kit; sync via `MPC_Magical`
 - **PCG:** fallen petals (density falloff near trunks) + grass / tiny flowers on the ground.
 
@@ -103,7 +107,7 @@ Legacy note: fallen petals on path + grass were originally one bullet; Niagara h
 - ✅ Scene — `setup_sakura_scene.py` (`L_SakuraPath`: dusk rig + toon/bloom post + greybox torii/path/trunks + CineCamera)
 - ✅ Motif alphas — `_AssetLibrary/Magical/` (heart/star/ribbon)
 - ⏳ CC0 kit assets (tree/torii/lantern/rocks/bridge) — sourcing pending (license-checked)
-- ✅ Niagara Sakura Dream kit — `setup_sakura_niagara.py` (6 systems + sprite material + MPC + L_SakuraPath spawn)
+- ✅ Niagara Sakura Dream kit — scripts + level spawns (`run_sakura_niagara_plan.py`); hand-tune emitters in Niagara Editor after scaffold
 - ⏳ PCG scatter graphs — Phase 1 ground cover via `setup_pcg_sakura.py`; petals/path deferred
 - ⏸️ Master ③ MF-refactor — deferred until rebuild verified
 

@@ -34,10 +34,11 @@ SHOWCASE: list[tuple[str, str, tuple[float, float, float]]] = [
     ("MI_Show_CelestialNebula", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_CelestialNebula", (200, 0, 100)),
     ("MI_Show_FairyHearts", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_FairyHearts", (400, 0, 100)),
     ("MI_Show_SkinSoft", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_SkinSoft", (600, 0, 100)),
-    ("MI_Show_ForestFoliage", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ForestFoliage", (800, 0, 100)),
-    ("MI_Show_ContactRimHero", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ContactRimHero", (1000, 0, 100)),
-    ("MI_Show_ElementHydro", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ElementHydro", (1200, 0, 100)),
-    ("MI_Show_InkWash", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_InkWash", (1400, 0, 100)),
+    ("MI_Show_NikkiHero", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_NikkiHero", (700, 0, 100)),
+    ("MI_Show_ForestFoliage", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ForestFoliage", (900, 0, 100)),
+    ("MI_Show_ContactRimHero", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ContactRimHero", (1100, 0, 100)),
+    ("MI_Show_ElementHydro", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ElementHydro", (1300, 0, 100)),
+    ("MI_Show_InkWash", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_InkWash", (1500, 0, 100)),
 ]
 
 

@@ -5,17 +5,26 @@ crack/wear variation across trim sheets.
 
 Run (editor or headless):
   py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_trimsheet_instances.py"
+
+Headless:
+  UnrealEditor-Cmd.exe BS_GodFile.uproject ^
+    -ExecutePythonScript="G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_trimsheet_instances.py" ^
+    -unattended -nullrhi
 """
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
-import material_lib as lib
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+UE_CMD = Path(r"C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe")
+UPROJECT = PROJECT_ROOT / "BS_GodFile.uproject"
 
-MASTER = f"{lib.MASTER_DIR}/M_Master_Toon_Universal.M_Master_Toon_Universal"
-REPORT = Path(__file__).resolve().parents[2] / "Saved" / "Audit" / "trimsheet_instances.json"
-FOLDER = f"{lib.ENV_INST_DIR}/Stylized"
+MASTER = "/Game/EnvSandbox/Materials/Masters/M_Master_Toon_Universal.M_Master_Toon_Universal"
+REPORT = PROJECT_ROOT / "Saved" / "Audit" / "trimsheet_instances.json"
+FOLDER = "/Game/EnvSandbox/Materials/Instances/Environment/Stylized"
 
 # Artist guide (also written to REPORT):
 # - Layer A = primary trimsheet (clean albedo + height in LayerA group)
@@ -38,7 +47,9 @@ TRIMSHEET_INSTANCES: list[dict] = [
             "ParallaxScale": 0.055,
             "ParallaxSteps": 12.0,
             "ParallaxMode": 2.0,
+            "ParallaxHeight": 0.9,
             "NormalStrength": 1.2,
+            "NormalPower": 0.9,
             "LayerA_ParallaxScale": 1.0,
             "LayerB_ParallaxScale": 1.35,
             "MacroVariationStrength": 0.28,
@@ -47,6 +58,29 @@ TRIMSHEET_INSTANCES: list[dict] = [
             "DetailTiling": 10.0,
             "Roughness": 0.68,
             "Metallic": 0.04,
+        },
+    },
+    {
+        "name": "MI_Trimsheet_ParallaxPOM",
+        "profile": "TP_Stone",
+        "vectors": {"BaseTint": (0.55, 0.50, 0.46, 1.0)},
+        "scalars": {
+            "TextureWeight": 1.0,
+            "LayerBlend": 0.35,
+            "LayerA_TextureWeight": 1.0,
+            "LayerB_TextureWeight": 0.85,
+            "ParallaxStrength": 0.7,
+            "ParallaxScale": 0.06,
+            "ParallaxSteps": 16.0,
+            "ParallaxMode": 2.0,
+            "ParallaxHeight": 0.9,
+            "NormalStrength": 1.35,
+            "NormalPower": 0.85,
+            "LayerA_ParallaxScale": 1.0,
+            "LayerB_ParallaxScale": 1.5,
+            "MacroVariationStrength": 0.2,
+            "MacroScale": 0.001,
+            "Roughness": 0.7,
         },
     },
     {
@@ -60,6 +94,9 @@ TRIMSHEET_INSTANCES: list[dict] = [
             "LayerB_TextureWeight": 0.75,
             "ParallaxStrength": 0.45,
             "ParallaxScale": 0.04,
+            "ParallaxSteps": 10.0,
+            "ParallaxMode": 1.0,
+            "NormalStrength": 1.1,
             "MacroVariationStrength": 0.15,
             "MacroScale": 0.0009,
             "Roughness": 0.72,
@@ -73,6 +110,11 @@ TRIMSHEET_INSTANCES: list[dict] = [
             "LayerBlend": 0.68,
             "LayerB_TextureWeight": 1.0,
             "ParallaxStrength": 0.75,
+            "ParallaxScale": 0.065,
+            "ParallaxSteps": 14.0,
+            "ParallaxMode": 2.0,
+            "ParallaxHeight": 0.82,
+            "NormalStrength": 1.25,
             "LayerB_ParallaxScale": 1.6,
             "MacroVariationStrength": 0.42,
             "MacroScale": 0.0015,
@@ -84,6 +126,7 @@ TRIMSHEET_INSTANCES: list[dict] = [
 
 
 def build() -> list[dict]:
+    import material_lib as lib
     import unreal
 
     if not unreal.EditorAssetLibrary.does_asset_exist(MASTER):
@@ -108,12 +151,34 @@ def build() -> list[dict]:
     return results
 
 
-def main() -> int:
+def _in_ue() -> bool:
     try:
         import unreal  # noqa: F401
+        return True
     except ImportError:
-        print("Requires Unreal Editor Python")
-        return 1
+        return False
+
+
+def main() -> int:
+    if not _in_ue():
+        if not UE_CMD.exists():
+            print(f"ERROR: UE not found at {UE_CMD}")
+            print("Run in-editor: py Content/Python/setup_trimsheet_instances.py")
+            return 1
+        log = PROJECT_ROOT / "Saved" / "Logs" / "trimsheet_instances.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            str(UE_CMD),
+            str(UPROJECT),
+            f"-ExecutePythonScript={(PROJECT_ROOT / 'Content/Python/setup_trimsheet_instances.py').as_posix()}",
+            "-stdout",
+            "-unattended",
+            "-nosplash",
+            "-nullrhi",
+            f"-log={log}",
+        ]
+        print(f"Trimsheet instances -> {log}")
+        return subprocess.run(cmd, cwd=str(PROJECT_ROOT)).returncode
 
     results = build()
     report = {

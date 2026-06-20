@@ -119,7 +119,9 @@ def _run_session() -> int:
 
     step(
         "sakura dream niagara",
-        lambda: __import__("setup_sakura_niagara").build_all(rebuild=False, spawn=True),
+        lambda: __import__("run_sakura_niagara_plan").run_plan(
+            rebuild=False, skip_master=True, showcase=showcase
+        ),
         optional=True,
     )
 

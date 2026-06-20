@@ -24,7 +24,7 @@ Groups in the Material Editor (rebuild master with `--force` after group renames
 | **Textures / LayerA / LayerB** | Albedo, normal, ORM, height, detail |
 | **Triplanar / Temporal** | World-aligned UVs, ink boil/smear |
 | **Parallax** | **`MF_ParallaxCore`** — modes 0/1/2 height UV offset; **`MF_NormalAdjust`** — `NormalStrength`, `NormalPower`, per-layer strengths; `ParallaxSteps` wired |
-| **Nikki** | Pastel lift, rim, sparkle, iridescence, bloom, fabric sheen |
+| **Nikki** | Infinity Nikki environment look stack: rim/glow shaping, sparkles, dreamy grading, iridescence, fabric sheen + quality switches |
 | **Celestial** | **`MF_SpaceParallax`** — parallax stars/nebula/galaxy with toon-banded nebula; `StarMap` texture + `CelestialToonSteps`; legacy `ConstellationPhase` / `CelestialTwinkle` / `CelestialGalaxyArms` kept for MI compat (no graph wiring) |
 | **Gilding** | Curvature gold leaf |
 | **ShadowDream** | Soft N·L shadow color tint |
@@ -36,24 +36,62 @@ Groups in the Material Editor (rebuild master with `--force` after group renames
 
 Key expansion params have inline `desc` tooltips when the master is rebuilt via `setup_master_universal.py`.
 
-## Starter instances (10)
+## Starter instances (11)
 
 Canonical set on `M_Master_Toon_Universal` — one isolated capability each. Folder: `/Game/EnvSandbox/Materials/Instances/Showcase`. Source of truth: `Content/Python/starter_instances.py` (`STARTER_INSTANCES`, `STARTER_NAMES`).
 
 | Instance | Theme | Purpose | Key params (editor group) |
 |----------|-------|---------|---------------------------|
-| `MI_Show_Default` | Default showcase | Neutral tint, full texture weight, zero stylization | `BaseTint`, `TextureWeight`, `Roughness` |
-| `MI_Show_StoneCliff` | Stone | Triplanar cliff + **MF_ParallaxCore** POM + normal power | `ParallaxStrength`, `ParallaxSteps`, `NormalStrength` (Parallax) |
-| `MI_Show_CherryBlossom` | Flower shadow | Projected petal shadows + sparkle on soft pink | `ShadowFlowerStrength`, `ShadowFlowerScale` (FlowerShadow) |
-| `MI_Show_CelestialNebula` | Nebula | **MF_SpaceParallax** constellation ramp + parallax nebula + galaxy | `CelestialNebulaStrength`, `ConstellationRamp*`, `StarMap`, `CelestialToonSteps` (Celestial) |
-| `MI_Show_FairyHearts` | Magic / fairy | Heart motif, fairy dust, partial henshin wipe | `MagicalTransform`, `MotifColor`, `FairyDustIntensity` (Magical + FairyDust) |
-| `MI_Show_SkinSoft` | Nikki character | Skin wrap, cheek warmth, soft pastel base | `SkinWrapStrength`, `PastelLift`, `CheekWarmthStrength` (Character + Nikki) |
-| `MI_Show_ForestFoliage` | Foliage | Mossy forest floor with dreamy shadow tint | `ShadowDreamStrength`, `MossConcavityStrength` (World + ShadowDream) |
-| `MI_Show_ContactRimHero` | Cinematic | Contact rim + atmospheric distance fade | `ContactRimStrength`, `DistanceFadeStrength` (Cinematic) |
-| `MI_Show_ElementHydro` | Elemental | Wet iridescent hydro glass (`ElementType=2`) | `ElementStrength`, `WetnessStrength` (Elemental) |
-| `MI_Show_InkWash` | Stylized ink | Temporal boil + smear + wind | `TemporalStrength`, `SmearStrength`, `WindSpeed` (Temporal) |
+| `MI_Show_Default` | Default showcase | Neutral tint; identity normal/parallax baseline | `BaseTint`, `NormalStrength`, `TextureWeight` |
+| `MI_Show_StoneCliff` | Stone | Triplanar cliff + **MF_ParallaxCore** POM + normal power | `ParallaxMode`, `ParallaxHeight`, `NormalStrength` (Parallax) |
+| `MI_Show_CherryBlossom` | Flower shadow | Projected petal shadows + advanced sparkle on soft pink | `ShadowFlowerStrength`, `SparkleThreshold` (FlowerShadow + Nikki) |
+| `MI_Show_CelestialNebula` | Nebula | **MF_SpaceParallax** constellation + Nikki sparkle/glow | `CelestialNebulaStrength`, `SparkleThreshold`, `StarMap` (Celestial + Nikki) |
+| `MI_Show_FairyHearts` | Magic / fairy | Heart motif, fairy dust, henshin + Nikki rim/glow | `MagicalTransform`, `FairyDustIntensity`, `RimWidth` (Magical + Nikki) |
+| `MI_Show_SkinSoft` | Nikki (environment) | Soft pastel + `bNikkiFast` path (contrast with Hero) | `PastelLift`, `bNikkiFast`, `DreamHueShift` (Nikki) |
+| `MI_Show_NikkiHero` | Nikki (hero) | Full Nikki stack — rim/glow/sparkle/iridescence/sheen | `bNikkiHero`, `SparkleThreshold`, `IridescencePower` (Nikki) |
+| `MI_Show_ForestFoliage` | Foliage | Mossy forest floor + dreamy Nikki grading | `MossConcavityStrength`, `DreamSaturation` (World + Nikki) |
+| `MI_Show_ContactRimHero` | Cinematic | Contact rim + Nikki rim shaping + distance fade | `ContactRimStrength`, `RimWidth`, `DistanceFadeStrength` (Cinematic + Nikki) |
+| `MI_Show_ElementHydro` | Elemental | Wet iridescent hydro glass (`ElementType=2`) | `ElementStrength`, `IridescencePower`, `WetnessStrength` (Elemental + Nikki) |
+| `MI_Show_InkWash` | Stylized ink | Temporal boil + Nikki dream grade + smear | `TemporalStrength`, `DreamContrast`, `SmearStrength` (Temporal + Nikki) |
 
-Legacy `MI_Universal_*` names map via `LEGACY_ALIASES` in `starter_instances.py` (e.g. `MI_Universal_DreamyPastel` → `MI_Show_SkinSoft`).
+Legacy `MI_Universal_*` names map via `LEGACY_ALIASES` in `starter_instances.py` (e.g. `MI_Universal_DreamyPastel` → `MI_Show_SkinSoft`, `MI_Universal_NikkiHero` → `MI_Show_NikkiHero`).
+
+## Infinity Nikki controls (environment)
+
+These live on `M_Master_Toon_Universal` and are meant for **environment** materials (not skin shading). Defaults are neutral/off.
+
+- **Nikki Rim & Glow**: `RimWidth`, `RimBias`, `RimClamp`, `InnerGlowWidth`, plus `bNikkiFast` / `bNikkiHero`.
+- **Nikki Sparkle**: `SparkleThreshold`, `SparkleContrast`, `SparkleDriftSpeed`, `SparkleTwinkleSpeed`, optional gradient (`SparkleColorLow/High` + `SparkleColorLerp`), and `bSparkleAdvanced`.
+- **Nikki Iridescence & Sheen**: grading (`DreamSaturation`, `DreamContrast`, `DreamShadowLift`, `DreamHighlightSoft`, `DreamHueShift`), iridescence shaping (`IridescencePower`, `IridescenceBias`, `IridescenceRoughnessAtten`), sheen shaping (`SheenWidth`, `SheenBias`, `bSheenUsesNormal`).
+
+Quick recipes:
+- **Soft pastel**: raise `PastelLift`, small `DreamSaturation`, negative `DreamContrast`, small `DreamShadowLift`.
+- **Hero sparkle**: set `bNikkiFast=false`, `bNikkiHero=true`, enable `bSparkleAdvanced`, then tune `SparkleThreshold/Contrast` and twinkle/drift speeds.
+
+## Trimsheet instances (4)
+
+Layer A/B blend presets on `M_Master_Toon_Universal`. Folder: `/Game/EnvSandbox/Materials/Instances/Environment/Stylized`. Source: `Content/Python/setup_trimsheet_instances.py`.
+
+| Instance | Purpose | Key params |
+|----------|---------|------------|
+| `MI_Trimsheet_VariationCracks` | Crack overlay + stepped POM | `LayerBlend`, `ParallaxHeight`, `NormalPower` |
+| `MI_Trimsheet_ParallaxPOM` | Parallax hero — full POM stack + normal power | `ParallaxStrength`, `ParallaxHeight`, `NormalStrength` |
+| `MI_Universal_TrimsheetBlend` | Light blend starter | `LayerBlend`, `ParallaxMode`, `ParallaxStrength` |
+| `MI_Trimsheet_HeavyWear` | Heavy wear + moss concavity | `LayerBlend`, `ParallaxMode`, `MossConcavityStrength` |
+
+## SDF environment masters (top 5)
+
+Procedural façade / stone kit — separate from `M_Master_Toon_Universal`. Folder: `/Game/EnvSandbox/Materials/Masters/` + `SDF/Instances/`. See `MATERIAL_MIGRATION.md` for full inventory.
+
+| Master | Use case | Canonical params | Instance anchor |
+|--------|----------|------------------|-----------------|
+| `M_SDF_TrueParallax` | Façade relief / parallax panels | `BaseTint`, `AccentTint`, `SDF_BandScale`, `SDF_BandStrength` | `MI_Toon_SDF_Wall` |
+| `M_SDF_GildedStucco` | Terrace / plaster walls | `BaseTint`, `AccentTint`, `SDF_BandScale` | `MI_Toon_SDF_Floor` |
+| `M_Master_SDF_Toon` | Portfolio SDF + compositing textures | `BaseTint`, `AccentTint`, texture slots (Albedo/Normal/ORM) | `MI_SDF_*` family |
+| `M_SDF_ReliefPanel` | Deep baroque relief bands | `BaseTint`, `AccentTint`, `DeepTint`, `BandScale`, `ReliefDepth`, `NoiseScale` | `MI_SDF_ReliefPanel_Baroque` |
+| `M_SDF_HybridStone` | Worn stone + crack wear | `StoneTint`, `MossTint`, `GoldEdge`, `WearAmount`, `StoneTiling` | `MI_SDF_HybridStone_Worn` |
+
+**Naming convention:** `*Tint` (color), `*Scale` / `*Tiling` (frequency), `*Strength` / `*Amount` / `*Depth` (intensity). Prefer these over one-off names when adding SDF instances.
 
 ## Python scripts (run order)
 
@@ -68,7 +106,8 @@ python Content/Python/run_phase_a_safe.py
 
 ```text
 py Content/Python/setup_master_universal.py                 # or --force to refresh groups
-py Content/Python/apply_starter_instances.py              # create/update 10 MI_Show_*
+py Content/Python/apply_starter_instances.py              # create/update 11 MI_Show_*
+py Content/Python/setup_trimsheet_instances.py          # create/update 4 trimsheet MIs
 py Content/Python/archive_unused_instances.py             # optional: move legacy Environment MIs
 py Content/Python/review_portfolio_masters.py             # masters + starter texture pass (editor)
 py Content/Python/setup_template_showcase.py              # L_Template sphere row
@@ -81,6 +120,9 @@ set BS_STARTERS_ONLY=1
 UnrealEditor-Cmd.exe BS_GodFile.uproject ^
   -ExecutePythonScript="G:/EnvironmentPortfolio/BS_GodFile/Content/Python/apply_starter_instances.py" ^
   -unattended -nullrhi
+
+py Content/Python/setup_trimsheet_instances.py          # headless, same flags
+py Content/Python/review_portfolio_masters.py           # headless audit
 ```
 
 Editor one-shot: `py ".../run_editor_integration.py"`
@@ -132,7 +174,18 @@ If a future headless run fails with **Error 32** (file lock), close the editor a
 | Headless `setup_master_universal.py` with `BS_MASTER_FORCE=1` | **OK** — rebuilt in-place; 656/656 wires; FlowerShadow group + param `desc` tooltips baked |
 | Headless `--force` via argv | Fixed — UE-Cmd does not pass `-force` to `sys.argv`; use `BS_MASTER_FORCE=1` env |
 
-**Next tick:** editor `setup_template_showcase.py` (10-sphere row) + `review_portfolio_masters.py` viewport check on nebula/cherry blossom starters.
+**Next tick:** editor `setup_template_showcase.py` (11-sphere row incl. NikkiHero) + viewport check on nebula/cherry blossom starters.
+
+### Napo loop ticks #2–#16 (2026-06-20) — automated 15m cadence
+
+| Track | Highlights |
+|-------|------------|
+| Starters (11) | `MI_Show_NikkiHero` added; all showcases cross-polished with Nikki/parallax params |
+| Trimsheets (4) | `MI_Trimsheet_ParallaxPOM` + parallax height/normal on all presets |
+| Docs | SDF top-5 table, trimsheet table, Nikki environment guide |
+| Audit | `master_review.json` stays `clean: true` across ticks |
+
+See `Docs/MATERIAL_LIBRARY_NAPO_LOOP_PLAN.md` and `Docs/Research/UE58_MaterialNotes.md` for per-tick notes.
 
 ## Master texture loop (no `/Engine/` textures)
 

@@ -87,6 +87,24 @@ def register_livelink_menus():
     )
     add_entry(
         live,
+        "Portfolio",
+        "RunSakuraNiagara",
+        "Run Sakura Dream Niagara (full plan)",
+        "import run_sakura_niagara_plan; "
+        "report = run_sakura_niagara_plan.run_plan(rebuild=False); "
+        "unreal.log('[Portfolio] Sakura Niagara all_ok=' + str(report.get('all_ok')))",
+    )
+    add_entry(
+        live,
+        "Portfolio",
+        "RunSakuraNiagaraRebuild",
+        "Run Sakura Dream Niagara (--rebuild)",
+        "import run_sakura_niagara_plan; "
+        "report = run_sakura_niagara_plan.run_plan(rebuild=True); "
+        "unreal.log('[Portfolio] Sakura Niagara all_ok=' + str(report.get('all_ok')))",
+    )
+    add_entry(
+        live,
         "Help",
         "HelpLL",
         "How to use (no UE panel)",

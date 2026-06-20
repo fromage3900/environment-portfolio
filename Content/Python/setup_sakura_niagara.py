@@ -1,13 +1,17 @@
 """Sakura Dream Niagara kit for L_SakuraPath — six systems + sprite material + MPC driver.
 
-Run in-editor (UnrealMCP on port 55557 preferred for proper templates):
+Run full plan (prerequisites + rebuild + spawn + validate):
+  py Content/Python/run_sakura_niagara_plan.py
+  py Content/Python/run_sakura_niagara_plan.py --rebuild
+
+Run kit only:
   py Content/Python/setup_sakura_niagara.py
   py Content/Python/setup_sakura_niagara.py --rebuild
   py Content/Python/setup_sakura_niagara.py --spawn-only
 
 Headless:
   UnrealEditor-Cmd.exe BS_GodFile.uproject ^
-    -ExecutePythonScript="G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_sakura_niagara.py"
+    -ExecutePythonScript="G:/EnvironmentPortfolio/BS_GodFile/Content/Python/run_sakura_niagara_plan.py"
 """
 from __future__ import annotations
 
@@ -17,8 +21,6 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-
 from pathlib import Path
 
 import material_lib as lib
@@ -42,7 +44,10 @@ MASTER_SPRITE = "M_Niagara_SakuraSprite"
 NIAGARA_EMITTER_ROOT = "/Niagara/DefaultAssets/Templates/Emitters"
 
 MCP_HOST = "127.0.0.1"
-MCP_PORT = 55557
+MCP_PORTS = (55557, 55558)  # UnrealMCP (EpicUnrealMCPBridge)
+MONOLITH_URL = "http://127.0.0.1:9316/mcp"
+_active_mcp_port: int | None = None
+_active_mcp_backend: str | None = None  # "unreal" | "monolith"
 
 # Palette from setup_sakura_instances.py (linear 0-1)
 COLORS = {
@@ -213,20 +218,33 @@ ENGINE_SYSTEM_TEMPLATES: dict[str, list[str]] = {
     "Fountain": [
         "/Niagara/DefaultAssets/Templates/Systems/FountainLightweight.FountainLightweight",
         "/Niagara/DefaultAssets/Templates/Systems/FountainLightweight",
+        "/Niagara/DefaultAssets/Templates/Systems/Fountain.Fountain",
+        "/Niagara/DefaultAssets/Templates/Systems/Fountain",
         "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
     ],
     "HangingParticulates": [
+        "/Niagara/DefaultAssets/Templates/Systems/HangingParticulates.HangingParticulates",
+        "/Niagara/DefaultAssets/Templates/Systems/HangingParticulates",
         "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
         "/Niagara/DefaultAssets/DefaultSystem.DefaultSystem",
     ],
     "OmnidirectionalBurst": [
         "/Niagara/DefaultAssets/Templates/Systems/RadialBurst.RadialBurst",
+        "/Niagara/DefaultAssets/Templates/Systems/RadialBurst",
         "/Niagara/DefaultAssets/Templates/Systems/DirectionalBurst.DirectionalBurst",
+        "/Niagara/DefaultAssets/Templates/Systems/OmnidirectionalBurst.OmnidirectionalBurst",
     ],
     "floating_dust": [
         "/Niagara/DefaultAssets/Templates/Systems/MinimalLightweight.MinimalLightweight",
         "/Niagara/DefaultAssets/DefaultSystem.DefaultSystem",
     ],
+}
+
+TEMPLATE_NAME_HINTS: dict[str, tuple[str, ...]] = {
+    "Fountain": ("FountainLightweight", "Fountain", "MinimalLightweight"),
+    "HangingParticulates": ("HangingParticulates", "MinimalLightweight", "DefaultSystem"),
+    "OmnidirectionalBurst": ("RadialBurst", "DirectionalBurst", "OmnidirectionalBurst", "Burst"),
+    "floating_dust": ("MinimalLightweight", "FloatingDust", "DefaultSystem"),
 }
 
 
@@ -272,6 +290,39 @@ def _cleanup_stub_assets() -> list[str]:
                     uasset.unlink(missing_ok=True)
                     removed.append(str(uasset))
     return removed
+
+
+# Hand-tune checklist (Niagara Editor) — applied automatically where Python allows.
+SAKURA_TUNING_NOTES: dict[str, list[str]] = {
+    "NS_SakuraPetals": [
+        "Spawn: box ~1200x800x400 above canopy; mixed petal/blossom sub-image",
+        "Forces: curl noise wind + light gravity; SpriteRotationRate flutter",
+        "Assign MI_Niagara_Petal on sprite renderer (Python cannot bind in UE 5.8)",
+        "GPU sim if spawn rate > ~2k",
+    ],
+    "NS_SakuraGroundPetals": [
+        "Spawn: flat box along path Y=0-30; higher density under tree positions",
+        "Motion: slow horizontal drift, short lifetime, desaturated pink",
+        "Assign MI_Niagara_Petal; lower emissive than canopy",
+    ],
+    "NS_SakuraDreamSparkle": [
+        "Sparse volume under canopy; sine scale/opacity pulse",
+        "Bind SparklePulse from MPC_SakuraDream to emissive if exposed",
+        "Assign MI_Niagara_Sparkle; size 2-6",
+    ],
+    "NS_SakuraLanternMotes": [
+        "Small sphere spawn at lantern; ~30 motes, slow rise",
+        "Assign MI_Niagara_Mote; gold (1.0, 0.78, 0.45)",
+    ],
+    "NS_SakuraPondShimmer": [
+        "Flat box 400x300 over pond; minimal motion, twinkle only",
+        "Assign MI_Niagara_Pond; cool pastel, very low opacity",
+    ],
+    "NS_SakuraPetalGust": [
+        "One-shot burst 40-80 petals; User.BurstScale or MPC GustTrigger",
+        "Assign MI_Niagara_Gust; optional 15-30s auto-loop for demo",
+    ],
+}
 
 
 LEVEL_SPAWNS = [
@@ -332,9 +383,92 @@ def _asset_path(folder: str, name: str) -> str:
     return f"{folder}/{name}.{name}"
 
 
+def _monolith_ping(timeout: float = 5.0) -> bool:
+    try:
+        import monolith_mcp_client as mono
+
+        return mono.ping(timeout=timeout)
+    except Exception:
+        return False
+
+
+def _monolith_call(command: str, params: dict) -> dict:
+    import monolith_mcp_client as mono
+
+    if command == "ping":
+        return {"result": {"message": "pong"}} if mono.ping() else {"error": "monolith offline"}
+
+    if command == "create_niagara_system":
+        actions = (
+            "create_system_from_emitter",
+            "duplicate_emitter_to_system",
+            "create_niagara_system",
+        )
+        payload = {
+            "system_name": params.get("system_name"),
+            "destination_path": params.get("destination_path"),
+            "template_emitter_path": params.get("template_emitter_path"),
+            "template_path": params.get("template_emitter_path"),
+        }
+        last_err = None
+        for action in actions:
+            try:
+                result = mono.niagara_query(action, **{k: v for k, v in payload.items() if v})
+                return {"result": {"success": True, "system_path": result.get("system_path") or result.get("path"), **result}}
+            except Exception as exc:
+                last_err = exc
+        raise RuntimeError(f"Monolith niagara_query create failed: {last_err}")
+
+    if command == "create_atmospheric_fx":
+        actions = ("create_atmospheric_fx", "create_floating_dust", "create_system_from_preset")
+        payload = {
+            "system_name": params.get("system_name"),
+            "destination_path": params.get("destination_path"),
+            "preset": params.get("preset"),
+        }
+        last_err = None
+        for action in actions:
+            try:
+                result = mono.niagara_query(action, **{k: v for k, v in payload.items() if v})
+                return {"result": {"success": True, **result}}
+            except Exception as exc:
+                last_err = exc
+        raise RuntimeError(f"Monolith atmospheric create failed: {last_err}")
+
+    if command == "spawn_niagara_system":
+        try:
+            result = mono.niagara_query("spawn_system", **params)
+            return {"result": {"success": True, **result}}
+        except Exception:
+            result = mono.editor_query("spawn_niagara_actor", **params)
+            return {"result": {"success": True, **result}}
+
+    if command == "set_niagara_parameter":
+        try:
+            result = mono.niagara_query(
+                "set_user_parameter",
+                actor_name=params.get("actor_name"),
+                parameter_name=params.get("parameter_name"),
+                parameter_type=params.get("parameter_type"),
+                value=params.get("value"),
+            )
+            return {"result": {"success": True, **result}}
+        except Exception:
+            result = mono.niagara_query("set_parameter", **params)
+            return {"result": {"success": True, **result}}
+
+    raise RuntimeError(f"Monolith bridge: unsupported command {command}")
+
+
 def _mcp_call(command: str, params: dict, timeout: float = 120.0) -> dict:
+    global _active_mcp_backend
+    if _active_mcp_backend == "monolith":
+        return _monolith_call(command, params)
+
+    global _active_mcp_port
+    port = _active_mcp_port or MCP_PORTS[0]
     payload = json.dumps({"command": command, "params": params}) + "\n"
-    with socket.create_connection((MCP_HOST, MCP_PORT), timeout=timeout) as sock:
+    with socket.create_connection((MCP_HOST, port), timeout=timeout) as sock:
         sock.sendall(payload.encode("utf-8"))
         data = b""
         while b"\n" not in data:
@@ -349,15 +483,31 @@ def _mcp_call(command: str, params: dict, timeout: float = 120.0) -> dict:
 def _mcp_ping(retries: int = 3, delay_sec: float = 1.0) -> bool:
     import time
 
+    global _active_mcp_port, _active_mcp_backend
+
+    for port in MCP_PORTS:
+        for attempt in range(retries):
+            try:
+                _active_mcp_port = port
+                _active_mcp_backend = "unreal"
+                resp = _mcp_call("ping", {}, timeout=5.0)
+                if resp.get("result", {}).get("message") == "pong" or resp.get("status") == "success":
+                    return True
+            except OSError:
+                pass
+            if attempt + 1 < retries:
+                time.sleep(delay_sec)
+
     for attempt in range(retries):
-        try:
-            resp = _mcp_call("ping", {}, timeout=5.0)
-            if resp.get("result", {}).get("message") == "pong" or resp.get("status") == "success":
-                return True
-        except OSError:
-            pass
+        if _monolith_ping(timeout=5.0):
+            _active_mcp_port = None
+            _active_mcp_backend = "monolith"
+            return True
         if attempt + 1 < retries:
             time.sleep(delay_sec)
+
+    _active_mcp_port = None
+    _active_mcp_backend = None
     return False
 
 
@@ -428,18 +578,14 @@ def build_mpc_sakura_dream() -> str:
         mpc = asset_tools.create_asset(MPC_SAKURA, MPC_DIR, unreal.MaterialParameterCollection, factory)
         if not mpc:
             raise RuntimeError(f"Failed to create {MPC_SAKURA}")
-
-    for param_name, default in MPC_SCALARS:
-        try:
-            param = unreal.CollectionScalarParameter()
-            param.default_value = default
-            param.parameter_name = param_name
-            mpc.add_scalar_parameter(param)
-        except Exception:
+        for param_name, default in MPC_SCALARS:
             try:
-                mpc.set_scalar_parameter_default_value(param_name, default)
+                param = unreal.CollectionScalarParameter()
+                param.default_value = default
+                param.parameter_name = param_name
+                mpc.add_scalar_parameter(param)
             except Exception as exc:
-                unreal.log_warning(f"[SakuraVFX] MPC {param_name}: {exc}")
+                unreal.log_warning(f"[SakuraVFX] MPC add {param_name}: {exc}")
 
     lib.save_package(mpc)
     unreal.log(f"[SakuraVFX] MPC ready {path}")
@@ -505,6 +651,28 @@ def build_niagara_sprite_material(*, force: bool = False) -> str:
     emissive = lib.create_expression(material, unreal.MaterialExpressionMultiply, -200, 40)
     lib.connect(color_mul, "", emissive, "A")
     lib.connect(emissive_strength, "", emissive, "B")
+
+    mpc_asset = f"{MPC_DIR}/{MPC_SAKURA}.{MPC_SAKURA}"
+    if unreal.EditorAssetLibrary.does_asset_exist(mpc_asset):
+        sparkle_mpc = lib.collection_scalar(material, MPC_DIR + "/" + MPC_SAKURA, "SparklePulse", -640, 320)
+        density_mpc = lib.collection_scalar(material, MPC_DIR + "/" + MPC_SAKURA, "PetalDensity", -640, 440)
+        sparkle_boost = lib.create_expression(material, unreal.MaterialExpressionMultiply, -420, 320)
+        lib.connect(sparkle_mpc, "", sparkle_boost, "A")
+        half = lib.create_expression(material, unreal.MaterialExpressionConstant, -640, 400)
+        half.set_editor_property("r", 0.5)
+        lib.connect(half, "", sparkle_boost, "B")
+        emissive_pulse = lib.create_expression(material, unreal.MaterialExpressionAdd, -200, 120)
+        lib.connect(emissive, "", emissive_pulse, "A")
+        lib.connect(sparkle_boost, "", emissive_pulse, "B")
+        emissive = emissive_pulse
+        opacity_density = lib.create_expression(material, unreal.MaterialExpressionMultiply, -420, 480)
+        lib.connect(opacity_scalar, "", opacity_density, "A")
+        density_clamp = lib.create_expression(material, unreal.MaterialExpressionClamp, -640, 520)
+        lib.connect(density_mpc, "", density_clamp, "Input")
+        density_clamp.set_editor_property("min", 0.1)
+        density_clamp.set_editor_property("max", 1.0)
+        lib.connect(density_clamp, "", opacity_density, "B")
+        opacity_scalar = opacity_density
 
     alpha_mul = lib.create_expression(material, unreal.MaterialExpressionMultiply, -420, 200)
     lib.connect(tex_a, "", alpha_mul, "A")
@@ -597,6 +765,39 @@ def _create_via_mcp(spec: SakuraSystemSpec) -> str:
     return result.get("system_path", path)
 
 
+def _discover_engine_templates(key: str) -> list[str]:
+    """Registry scan for NiagaraSystem templates matching template key hints."""
+    import unreal
+
+    hints = TEMPLATE_NAME_HINTS.get(key, (key,))
+    static = list(ENGINE_SYSTEM_TEMPLATES.get(key, []))
+    found: list[str] = []
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        ar.search_all_assets(True)
+        filt = unreal.ARFilter(
+            class_names=["NiagaraSystem"],
+            package_paths=["/Niagara"],
+            recursive_paths=True,
+        )
+        for data in ar.get_assets(filt):
+            pkg = str(data.package_name)
+            name = str(data.asset_name)
+            if not any(h.lower() in name.lower() for h in hints):
+                continue
+            for candidate in (f"{pkg}.{name}", pkg):
+                if unreal.EditorAssetLibrary.does_asset_exist(candidate):
+                    found.append(candidate)
+    except Exception as exc:
+        unreal.log_warning(f"[SakuraVFX] template registry scan: {exc}")
+
+    merged: list[str] = []
+    for path in static + found:
+        if path not in merged:
+            merged.append(path)
+    return merged
+
+
 def _create_from_engine_system(spec: SakuraSystemSpec) -> str:
     import unreal
 
@@ -607,8 +808,7 @@ def _create_from_engine_system(spec: SakuraSystemSpec) -> str:
 
     path = _asset_path(SYSTEMS_SAKURA, spec.name)
     key = _template_key(spec)
-    candidates = list(ENGINE_SYSTEM_TEMPLATES.get(key, []))
-    candidates.extend(ENGINE_SYSTEM_TEMPLATES.get("HangingParticulates", []))
+    candidates = _discover_engine_templates(key)
 
     for src in candidates:
         if not unreal.EditorAssetLibrary.does_asset_exist(src):
@@ -622,6 +822,25 @@ def _create_from_engine_system(spec: SakuraSystemSpec) -> str:
     raise RuntimeError(f"No engine NiagaraSystem template for {spec.name} (key={key})")
 
 
+def _ensure_portfolio_seeds() -> None:
+    """Bootstrap ambient/magical seeds if the sakura kit duplicates from portfolio library."""
+    import unreal
+
+    required = (
+        _asset_path(SYSTEMS_AMBIENT, "NS_FairyDust"),
+        _asset_path(SYSTEMS_AMBIENT, "NS_EmberMotes"),
+        _asset_path(SYSTEMS_MAGICAL, "NS_MagicalHenshinBurst"),
+    )
+    if all(unreal.EditorAssetLibrary.does_asset_exist(path) for path in required):
+        return
+    try:
+        import setup_niagara_library as nlib
+
+        nlib.build_all(showcase=False, prefer_mcp=_mcp_ping(retries=1))
+    except Exception as exc:
+        unreal.log_warning(f"[SakuraVFX] portfolio seed bootstrap: {exc}")
+
+
 def _duplicate_seed(spec: SakuraSystemSpec) -> str:
     import unreal
 
@@ -631,14 +850,30 @@ def _duplicate_seed(spec: SakuraSystemSpec) -> str:
     except Exception as engine_exc:
         unreal.log_warning(f"[SakuraVFX] engine template failed for {spec.name}: {engine_exc}")
 
-    seed = spec.seed_system
-    if seed:
-        seed_full = seed if "." in seed.rsplit("/", 1)[-1] else f"{seed}.{seed.rsplit('/', 1)[-1]}"
-        if unreal.EditorAssetLibrary.does_asset_exist(seed_full):
-            dup = unreal.EditorAssetLibrary.duplicate_asset(seed_full, path)
-            if dup:
-                unreal.log_warning(f"[SakuraVFX] duplicated {path} from portfolio seed {seed_full}")
-                return path
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        unreal.EditorAssetLibrary.delete_asset(path)
+
+    seeds: list[str] = []
+    if spec.seed_system:
+        seeds.append(spec.seed_system)
+    seeds.extend(
+        [
+            f"{SYSTEMS_AMBIENT}/NS_FairyDust",
+            f"{SYSTEMS_AMBIENT}/NS_EmberMotes",
+            f"{SYSTEMS_AMBIENT}/NS_ConstellationTwinkle",
+            f"{SYSTEMS_MAGICAL}/NS_MagicalHenshinBurst",
+        ]
+    )
+
+    for seed in seeds:
+        seed_name = seed.rsplit("/", 1)[-1]
+        seed_full = seed if seed.endswith(f".{seed_name}") else f"{seed}.{seed_name}"
+        if not unreal.EditorAssetLibrary.does_asset_exist(seed_full):
+            continue
+        dup = unreal.EditorAssetLibrary.duplicate_asset(seed_full, path)
+        if dup:
+            unreal.log_warning(f"[SakuraVFX] duplicated {path} from portfolio seed {seed_full}")
+            return path
 
     raise RuntimeError(f"No seed or engine template for {spec.name}")
 
@@ -654,6 +889,13 @@ def _delete_system(name: str) -> bool:
 
 def create_sakura_systems(*, rebuild: bool = False, prefer_mcp: bool = True) -> list[dict]:
     import unreal
+
+    if rebuild:
+        for spec in SAKURA_SYSTEMS:
+            if _delete_system(spec.name):
+                unreal.log(f"[SakuraVFX] deleted for rebuild: {spec.name}")
+
+    _ensure_portfolio_seeds()
 
     use_mcp = prefer_mcp and _mcp_ping()
     if use_mcp:
@@ -702,29 +944,62 @@ def _assign_sprite_material(system, material_path: str) -> bool:
         return False
 
     assigned = False
+    toolset = getattr(unreal, "NiagaraToolset_System", None)
+    if toolset:
+        for method in (
+            "set_renderer_material",
+            "SetRendererMaterial",
+            "set_sprite_renderer_material",
+        ):
+            if hasattr(toolset, method):
+                try:
+                    getattr(toolset, method)(system, material)
+                    assigned = True
+                    break
+                except Exception:
+                    pass
+            try:
+                toolset.call_method(method, system, material)
+                assigned = True
+                break
+            except Exception:
+                pass
+
+    editor_lib = getattr(unreal, "NiagaraEditorLibrary", None)
+    if editor_lib:
+        for call in (
+            lambda: editor_lib.set_renderer_material(system, material),
+            lambda: editor_lib.set_renderer_material(system, material, 0, 0),
+            lambda: editor_lib.set_system_sprite_material(system, material),
+        ):
+            try:
+                call()
+                assigned = True
+                break
+            except Exception:
+                pass
+
     try:
         handles = system.get_emitter_handles()
         for handle in handles:
             emitter = handle.get_instance()
             if not emitter:
                 continue
-            props = emitter.get_editor_property("renderer_properties") if hasattr(emitter, "get_editor_property") else None
-            if props:
-                for prop in props:
+            props = emitter.get_editor_property("renderer_properties")
+            if not props:
+                continue
+            for prop in props:
+                try:
+                    prop.set_editor_property("material", material)
+                    assigned = True
+                except Exception:
                     try:
-                        prop.set_editor_property("material", material)
+                        prop.set_editor_property("material_interface", material)
                         assigned = True
                     except Exception:
                         pass
     except Exception as exc:
         unreal.log_warning(f"[SakuraVFX] renderer material assign: {exc}")
-
-    try:
-        if hasattr(unreal, "NiagaraEditorLibrary"):
-            unreal.NiagaraEditorLibrary.set_renderer_material(system, material)
-            assigned = True
-    except Exception:
-        pass
 
     if assigned:
         system.request_compile(False)
@@ -736,13 +1011,88 @@ def _assign_sprite_material(system, material_path: str) -> bool:
     return assigned
 
 
-def tune_sakura_systems() -> list[dict]:
+def _mcp_set_actor_params(actor_label: str, spec: SakuraSystemSpec) -> list[str]:
+    import unreal
+
+    if not _mcp_ping(retries=1):
+        return []
+    set_ok: list[str] = []
+    for param_name, param_type, value in spec.user_params:
+        try:
+            if param_type == "float":
+                payload = float(value)
+                ptype = "float"
+            elif param_type == "color" and isinstance(value, dict):
+                payload = value
+                ptype = "color"
+            else:
+                continue
+            resp = _mcp_call(
+                "set_niagara_parameter",
+                {
+                    "actor_name": actor_label,
+                    "parameter_name": param_name,
+                    "parameter_type": ptype,
+                    "value": payload,
+                },
+            )
+            if resp.get("result", resp).get("success", True):
+                set_ok.append(param_name)
+        except Exception as exc:
+            unreal.log_warning(f"[SakuraVFX] MCP param {actor_label}.{param_name}: {exc}")
+    return set_ok
+
+
+def _mcp_spawn_actor(spawn: dict, system_folder: str) -> bool:
+    import unreal
+
+    if not _mcp_ping(retries=1):
+        return False
+    sys_name = spawn["system"]
+    sys_path = f"{system_folder}/{sys_name}"
+    try:
+        resp = _mcp_call(
+            "spawn_niagara_system",
+            {
+                "actor_name": spawn["label"],
+                "system_path": sys_path,
+                "location": list(spawn["location"]),
+                "rotation": [0, 0, 0],
+                "scale": list(spawn["scale"]),
+                "auto_activate": spawn.get("auto_activate", True),
+            },
+        )
+        return bool(resp.get("result", resp).get("success", True))
+    except Exception as exc:
+        unreal.log_warning(f"[SakuraVFX] MCP spawn {spawn['label']}: {exc}")
+        return False
+
+
+def tune_sakura_systems(*, sync_level_actors: bool = True) -> list[dict]:
     import unreal
 
     tuned: list[dict] = []
+    spawn_by_system = {s["system"]: s["label"] for s in LEVEL_SPAWNS}
+    level_actors: dict[str, object] = {}
+    if sync_level_actors:
+        level_name = LEVEL.rsplit("/", 1)[-1]
+        if unreal.EditorAssetLibrary.does_asset_exist(f"{LEVEL}.{level_name}"):
+            les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+            eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+            les.load_level(LEVEL)
+            for actor in eas.get_all_level_actors():
+                label = actor.get_actor_label()
+                if label in {s["label"] for s in LEVEL_SPAWNS}:
+                    level_actors[label] = actor
+
     for spec in SAKURA_SYSTEMS:
         path = _asset_path(SYSTEMS_SAKURA, spec.name)
-        entry = {"name": spec.name, "material_assigned": False, "params_set": []}
+        entry = {
+            "name": spec.name,
+            "material_assigned": False,
+            "params_set": [],
+            "hand_tune": SAKURA_TUNING_NOTES.get(spec.name, []),
+        }
         if not unreal.EditorAssetLibrary.does_asset_exist(path):
             entry["error"] = "missing"
             tuned.append(entry)
@@ -756,6 +1106,7 @@ def tune_sakura_systems() -> list[dict]:
 
         mat_path = _asset_path(VFX_MAT_DIR, spec.sprite_material)
         entry["material_assigned"] = _assign_sprite_material(system, mat_path)
+        entry["material_manual"] = not entry["material_assigned"]
 
         comp_path = f"{path}.{spec.name}"
         for param_name, param_type, value in spec.user_params:
@@ -774,8 +1125,17 @@ def tune_sakura_systems() -> list[dict]:
             except Exception:
                 pass
 
+        actor_label = spawn_by_system.get(spec.name)
+        actor = level_actors.get(actor_label) if actor_label else None
+        if actor:
+            _set_actor_niagara_params(actor, spec)
+            entry["actor_params_synced"] = actor_label
+
         tuned.append(entry)
-        unreal.log(f"[SakuraVFX] tuned {spec.name}: mat={entry['material_assigned']} params={entry['params_set']}")
+        unreal.log(
+            f"[SakuraVFX] tuned {spec.name}: mat={entry['material_assigned']} "
+            f"params={entry['params_set']} actor={entry.get('actor_params_synced')}"
+        )
     return tuned
 
 
@@ -803,7 +1163,7 @@ def _set_actor_niagara_params(actor, spec: SakuraSystemSpec) -> None:
             unreal.log_warning(f"[SakuraVFX] actor param {param_name}: {exc}")
 
 
-def spawn_sakura_vfx_on_level() -> list[str]:
+def spawn_sakura_vfx_on_level(*, use_mcp: bool = True) -> list[str]:
     import unreal
 
     level_path = LEVEL
@@ -819,6 +1179,7 @@ def spawn_sakura_vfx_on_level() -> list[str]:
 
     spec_by_name = {s.name: s for s in SAKURA_SYSTEMS}
     spawned: list[str] = []
+    mcp_ok = use_mcp and _mcp_ping(retries=1)
 
     for spawn in LEVEL_SPAWNS:
         label = spawn["label"]
@@ -828,19 +1189,43 @@ def spawn_sakura_vfx_on_level() -> list[str]:
             unreal.log_warning(f"[SakuraVFX] skip spawn — missing {sys_path}")
             continue
 
+        if mcp_ok:
+            for actor in list(eas.get_all_level_actors()):
+                if actor.get_actor_label() == label:
+                    eas.destroy_actor(actor)
+            if _mcp_spawn_actor(spawn, SYSTEMS_SAKURA):
+                spec = spec_by_name.get(sys_name)
+                if spec:
+                    _mcp_set_actor_params(label, spec)
+                spawned.append(label)
+                unreal.log(f"[SakuraVFX] MCP spawned {label}")
+                continue
+
         existing = None
         for actor in eas.get_all_level_actors():
             if actor.get_actor_label() == label:
                 existing = actor
                 break
-        if existing:
-            unreal.log(f"[SakuraVFX] reusing actor {label}")
-            spawned.append(label)
-            continue
 
         system = unreal.load_asset(sys_path)
         if not system:
             continue
+
+        if existing:
+            actor = existing
+            comp = actor.get_component_by_class(unreal.NiagaraComponent)
+            if comp:
+                comp.set_asset(system)
+                comp.set_auto_activate(spawn.get("auto_activate", True))
+                if spawn.get("auto_activate", True):
+                    comp.activate(True)
+            spec = spec_by_name.get(sys_name)
+            if spec:
+                _set_actor_niagara_params(actor, spec)
+            spawned.append(label)
+            unreal.log(f"[SakuraVFX] updated actor {label}")
+            continue
+
         loc = unreal.Vector(*spawn["location"])
         actor = eas.spawn_actor_from_class(unreal.NiagaraActor, loc, unreal.Rotator(0, 0, 0))
         if not actor:
@@ -865,6 +1250,40 @@ def spawn_sakura_vfx_on_level() -> list[str]:
     return spawned
 
 
+def build_sakura_showcase_level() -> str:
+    """Sakura-only review grid at /Game/EnvSandbox/VFX/_Showcase/L_VFX_SakuraShowcase."""
+    import unreal
+
+    showcase_dir = f"{VFX_ROOT}/_Showcase"
+    level_path = f"{showcase_dir}/L_VFX_SakuraShowcase"
+    lib.ensure_directory(showcase_dir)
+    les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    les.new_level(level_path)
+
+    col = 0
+    for spec in SAKURA_SYSTEMS:
+        sys_path = _asset_path(SYSTEMS_SAKURA, spec.name)
+        if not unreal.EditorAssetLibrary.does_asset_exist(sys_path):
+            continue
+        system = unreal.load_asset(sys_path)
+        if not system:
+            continue
+        loc = unreal.Vector(col * 500.0, 0.0, 150.0)
+        actor = eas.spawn_actor_from_class(unreal.NiagaraActor, loc, unreal.Rotator(0, 0, 0))
+        if actor:
+            actor.set_actor_label(spec.name)
+            comp = actor.get_component_by_class(unreal.NiagaraComponent)
+            comp.set_asset(system)
+            comp.activate(True)
+            _set_actor_niagara_params(actor, spec)
+        col += 1
+
+    les.save_current_level()
+    unreal.log(f"[SakuraVFX] showcase level {level_path}")
+    return level_path
+
+
 def build_all(*, rebuild: bool = False, spawn: bool = True, skip_prereq: bool = False) -> dict:
     import unreal
 
@@ -881,14 +1300,22 @@ def build_all(*, rebuild: bool = False, spawn: bool = True, skip_prereq: bool = 
     spawned = []
     if spawn:
         try:
-            spawned = spawn_sakura_vfx_on_level()
+            spawned = spawn_sakura_vfx_on_level(use_mcp=_mcp_ping(retries=1))
         except Exception as exc:
             unreal.log_error(f"[SakuraVFX] spawn failed: {exc}")
             spawned = []
 
+    validation = {}
+    try:
+        validation = __import__("validate_sakura_niagara").run_validation()
+    except Exception as exc:
+        validation = {"error": str(exc)}
+
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "used_mcp": _mcp_ping(retries=1),
+        "mcp_backend": _active_mcp_backend,
+        "mcp_port": _active_mcp_port,
         "prerequisites": prereq,
         "removed_stub_assets": removed_stubs,
         "mpc_sakura_dream": mpc_path,
@@ -897,6 +1324,7 @@ def build_all(*, rebuild: bool = False, spawn: bool = True, skip_prereq: bool = 
         "systems": systems,
         "tuned": tuned,
         "spawned_actors": spawned,
+        "validation": validation,
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
