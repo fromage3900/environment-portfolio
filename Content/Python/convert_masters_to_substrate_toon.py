@@ -500,18 +500,19 @@ def _has_front_material_wired(material: unreal.Material) -> bool:
 
 
 def _rename_mcp_parameters(material: unreal.Material, stem: str) -> list[str]:
+    import material_lib as lib
+
     mapping = MCP_PARAM_RENAMES.get(stem, {})
     renamed: list[str] = []
-    for expr in _get_expressions(material):
-        if not expr:
-            continue
+    seen: set[str] = set()
+    for expr, _owner in lib.iter_parameter_expressions(material):
         tname = _expr_type(expr)
         if "Parameter" not in tname:
             continue
-        old = expr.get_editor_property("parameter_name")
-        old_str = str(old) if old is not None else ""
-        if not old_str:
+        old_str = lib._param_name(expr) or ""
+        if not old_str or old_str in seen:
             continue
+        seen.add(old_str)
         if old_str in mapping:
             new_name, group = mapping[old_str]
             expr.set_editor_property("parameter_name", new_name)
@@ -523,6 +524,8 @@ def _rename_mcp_parameters(material: unreal.Material, stem: str) -> list[str]:
             expr.set_editor_property("parameter_name", new_name)
             expr.set_editor_property("group", "SDF")
             renamed.append(f"{old_str}->{new_name}")
+    if renamed:
+        material.modify()
     return renamed
 
 

@@ -43,6 +43,42 @@ def ensure_directory(path: str) -> None:
         unreal.EditorAssetLibrary.make_directory(path)
 
 
+def asset_class_name(asset_data) -> str:
+    """Short asset class from EditorAssetLibrary.find_asset_data (UE 5.8 safe)."""
+    if not asset_data:
+        return ""
+    try:
+        cls = asset_data.asset_class
+        if cls is None:
+            return ""
+        if hasattr(cls, "get_asset_name"):
+            name = cls.get_asset_name()
+            if name:
+                return str(name)
+        text = str(cls)
+        if "MaterialInstanceConstant" in text:
+            return "MaterialInstanceConstant"
+        if "MaterialFunction" in text:
+            return "MaterialFunction"
+        if "Material" in text:
+            return "Material"
+        if "." in text:
+            return text.rsplit(".", 1)[-1].rstrip("'")
+        return text
+    except Exception:
+        return ""
+
+
+def list_path_stem(list_path: str) -> str:
+    return list_path.rsplit("/", 1)[-1].split(".", 1)[0]
+
+
+def load_asset_from_list_path(list_path: str):
+    stem = list_path_stem(list_path)
+    base = list_path.split(".", 1)[0]
+    return unreal.load_asset(f"{base}.{stem}")
+
+
 def asset_path(folder: str, name: str) -> str:
     return f"{folder}/{name}.{name}"
 
@@ -86,6 +122,54 @@ def _modify_expression_owner(expr) -> None:
             outer = outer.get_outer() if hasattr(outer, "get_outer") else None
     except Exception:
         pass
+
+
+def _param_name(expr) -> str | None:
+    for prop in ("parameter_name", "ParameterName"):
+        try:
+            raw = expr.get_editor_property(prop)
+            if raw is not None:
+                return str(raw)
+        except Exception:
+            continue
+    return None
+
+
+def iter_parameter_expressions(root):
+    """Yield parameter expressions under a material graph (incl. nested functions)."""
+    visited: set[str] = set()
+    pending = [root]
+
+    while pending:
+        owner = pending.pop()
+        if isinstance(owner, unreal.Material):
+            exprs = list(unreal.MaterialEditingLibrary.get_material_expressions(owner) or [])
+        elif isinstance(owner, unreal.MaterialFunction):
+            key = owner.get_path_name().split(".", 1)[0]
+            if key in visited:
+                continue
+            visited.add(key)
+            try:
+                exprs = list(unreal.MaterialEditingLibrary.get_material_function_expressions(owner) or [])
+            except Exception:
+                exprs = []
+        else:
+            continue
+
+        for expr in exprs:
+            if not expr:
+                continue
+            tname = type(expr).__name__
+            if "Parameter" in tname and "Function" not in tname:
+                yield expr, owner
+            elif tname == "MaterialExpressionMaterialFunctionCall":
+                mf = None
+                try:
+                    mf = expr.get_editor_property("material_function")
+                except Exception:
+                    pass
+                if mf:
+                    pending.append(mf)
 
 
 def iter_texture_parameter_expressions(root):
@@ -288,19 +372,51 @@ def connect_toon_pin(toon_bsdf, expr, pin_names: tuple[str, ...]) -> bool:
     return False
 
 
-def scalar_param(owner, name: str, group: str, default: float, x: int, y: int):
+def _set_param_desc(expr, desc: str | None) -> None:
+    if not desc:
+        return
+    for prop in ("desc", "Desc", "parameter_desc"):
+        try:
+            if hasattr(expr, "has_editor_property") and expr.has_editor_property(prop):
+                expr.set_editor_property(prop, desc)
+                return
+        except Exception:
+            continue
+
+
+def scalar_param(
+    owner,
+    name: str,
+    group: str,
+    default: float,
+    x: int,
+    y: int,
+    *,
+    desc: str | None = None,
+):
     expr = create_expression(owner, unreal.MaterialExpressionScalarParameter, x, y)
     expr.set_editor_property("parameter_name", name)
     expr.set_editor_property("group", group)
     expr.set_editor_property("default_value", default)
+    _set_param_desc(expr, desc)
     return expr
 
 
-def vector_param(owner, name: str, group: str, default: tuple[float, float, float, float], x: int, y: int):
+def vector_param(
+    owner,
+    name: str,
+    group: str,
+    default: tuple[float, float, float, float],
+    x: int,
+    y: int,
+    *,
+    desc: str | None = None,
+):
     expr = create_expression(owner, unreal.MaterialExpressionVectorParameter, x, y)
     expr.set_editor_property("parameter_name", name)
     expr.set_editor_property("group", group)
     expr.set_editor_property("default_value", unreal.LinearColor(*default))
+    _set_param_desc(expr, desc)
     return expr
 
 
@@ -335,10 +451,11 @@ def collection_vector(owner, collection_path: str, param_name: str, x: int, y: i
     return collection_param(owner, collection_path, param_name, x, y, vector=True)
 
 
-def texture_param(owner, name: str, group: str, x: int, y: int):
+def texture_param(owner, name: str, group: str, x: int, y: int, *, desc: str | None = None):
     expr = create_expression(owner, unreal.MaterialExpressionTextureSampleParameter2D, x, y)
     expr.set_editor_property("parameter_name", name)
     expr.set_editor_property("group", group)
+    _set_param_desc(expr, desc)
     return expr
 
 

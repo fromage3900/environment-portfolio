@@ -40,10 +40,23 @@ SAKURA = [
     {"name": "MI_Sakura_Grass", "profile": "TP_Foliage",
      "vectors": {"BaseTint": (0.24, 0.40, 0.20, 1.0)},
      "scalars": {"TextureWeight": 0.80, "Roughness": 0.88}},
+    {"name": "MI_Sakura_Petals", "profile": "TP_Default",
+     "vectors": {"BaseTint": (1.0, 0.78, 0.86, 1.0), "GlowColor": (1.0, 0.85, 0.92, 1.0),
+                 "RimColor": (1.0, 0.62, 0.80, 1.0)},
+     "scalars": {"TextureWeight": 0.20, "Roughness": 0.60, "PastelLift": 0.60, "GlowIntensity": 0.25,
+                 "RimIntensity": 1.0, "SparkleIntensity": 0.8, "SparkleScale": 12.0}},
+    {"name": "MI_Sakura_Bridge", "profile": "TP_Stone",
+     "vectors": {"BaseTint": (0.38, 0.24, 0.16, 1.0)},
+     "scalars": {"TextureWeight": 0.85, "Roughness": 0.70, "MacroVariationStrength": 0.35,
+                 "DetailStrength": 0.45, "DetailTiling": 8.0}},
 ]
 
 
 def build():
+    try:
+        unreal.AssetRegistryHelpers.get_asset_registry().search_all_assets(True)
+    except Exception as e:
+        unreal.log_warning(f"[Sakura] registry scan: {e}")
     if not unreal.EditorAssetLibrary.does_asset_exist(PARENT):
         unreal.log_error("[Sakura] master missing — run setup_master_universal.py first")
         return

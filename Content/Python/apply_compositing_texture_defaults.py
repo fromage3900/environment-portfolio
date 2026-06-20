@@ -61,8 +61,9 @@ def _run_in_ue() -> int:
         report["masters"][base] = wired
         unreal.log(f"[CompositingDefaults] master {base}: {len(wired)} textures")
 
-    instance_wires = catalog.refresh_all_instance_textures()
+    instance_wires = catalog.refresh_starter_instance_textures()
     report["instances"] = instance_wires
+    report["instance_scope"] = "starters_only"
     report["instance_count"] = len(instance_wires)
     report["instance_textures_set"] = sum(len(v) for v in instance_wires.values())
 

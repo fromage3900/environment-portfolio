@@ -3,7 +3,7 @@
 Builds /Game/EnvSandbox/_Template/L_Template with:
   - Lighting rig, unbound PPV (manual exposure)
   - M_PP_ToonOutline + M_PP_StorybookVines blendables
-  - Row of spheres showcasing MI_Universal_* presets
+  - Row of spheres showcasing MI_Show_* starter presets
 
 Run via run_wild_session.py or:
   py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_template_showcase.py"
@@ -28,16 +28,16 @@ PP_VINES = "/Game/EnvSandbox/Materials/PostProcess/M_PP_StorybookVines.M_PP_Stor
 PP_VINES_INST = "/Game/EnvSandbox/Materials/PostProcess/M_PP_StorybookVines_Inst.M_PP_StorybookVines_Inst"
 
 SHOWCASE: list[tuple[str, str, tuple[float, float, float]]] = [
-    ("MI_Universal_Default", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_Default", (-400, 0, 100)),
-    ("MI_Universal_DreamyPastel", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_DreamyPastel", (-200, 0, 100)),
-    ("MI_Universal_Constellation", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_Constellation", (0, 0, 100)),
-    ("MI_Universal_CelestialNebula", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_CelestialNebula", (200, 0, 100)),
-    ("MI_Universal_GoldLeaf", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_GoldLeaf", (400, 0, 100)),
-    ("MI_Universal_FairyHearts", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_FairyHearts", (600, 0, 100)),
-    ("MI_Universal_FairyGarden", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_FairyGarden", (800, 0, 100)),
-    ("MI_Universal_TemporalInk", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_TemporalInk", (1000, 0, 100)),
-    ("MI_Universal_LayeredStone", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_LayeredStone", (1200, 0, 100)),
-    ("MI_Universal_MoonlitMetal", "/Game/EnvSandbox/Materials/Instances/Environment/MI_Universal_MoonlitMetal", (1400, 0, 100)),
+    ("MI_Show_Default", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_Default", (-400, 0, 100)),
+    ("MI_Show_StoneCliff", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_StoneCliff", (-200, 0, 100)),
+    ("MI_Show_CherryBlossom", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_CherryBlossom", (0, 0, 100)),
+    ("MI_Show_CelestialNebula", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_CelestialNebula", (200, 0, 100)),
+    ("MI_Show_FairyHearts", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_FairyHearts", (400, 0, 100)),
+    ("MI_Show_SkinSoft", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_SkinSoft", (600, 0, 100)),
+    ("MI_Show_ForestFoliage", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ForestFoliage", (800, 0, 100)),
+    ("MI_Show_ContactRimHero", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ContactRimHero", (1000, 0, 100)),
+    ("MI_Show_ElementHydro", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_ElementHydro", (1200, 0, 100)),
+    ("MI_Show_InkWash", "/Game/EnvSandbox/Materials/Instances/Showcase/MI_Show_InkWash", (1400, 0, 100)),
 ]
 
 

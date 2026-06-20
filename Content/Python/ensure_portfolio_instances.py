@@ -10,6 +10,7 @@ Run headless:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -238,6 +239,37 @@ NEW_PROFILE_STEMS = {
 }
 
 
+def _starters_only_requested() -> bool:
+    """When set, only rebuild MI_Show_* starters (skip SDF portfolio ensure pass)."""
+    if os.environ.get("BS_STARTERS_ONLY", "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    return any(str(a).lower() in ("--starters-only", "--starters") for a in sys.argv)
+
+
+def _run_starters_only() -> int:
+    import apply_starter_instances as starters
+    import portfolio_texture_catalog as catalog
+
+    unreal.log("=== Ensure portfolio instances (starters only) ===")
+    results = starters.build_starter_instances()
+    texture_pass = catalog.refresh_starter_instance_textures()
+    report = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "mode": "starters_only",
+        "starter_count": len(results),
+        "instances": results,
+        "texture_refresh": texture_pass,
+    }
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    unreal.log(f"[EnsureInstances] starters={len(results)} -> {REPORT_PATH}")
+    try:
+        unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
+    except Exception:
+        pass
+    return 0
+
+
 def _asset_path(folder: str, name: str) -> str:
     return f"{folder}/{name}.{name}"
 
@@ -368,20 +400,23 @@ def ensure_instance(spec: dict) -> dict:
 
 
 def audit_coverage() -> dict:
+    import material_lib as lib
+
     masters: list[dict] = []
+    env_inst = f"{MATERIALS_ROOT}/Instances/Environment"
     if not unreal.EditorAssetLibrary.does_directory_exist(MASTER_DIR):
         return {"masters": masters, "uncovered": []}
 
     for path in unreal.EditorAssetLibrary.list_assets(MASTER_DIR, recursive=False, include_folder=False):
-        stem = path.rsplit("/", 1)[-1].split(".")[0]
+        stem = lib.list_path_stem(path)
         if not stem.startswith("M_"):
             continue
-        ad = unreal.EditorAssetLibrary.find_asset_data(path)
-        if str(ad.asset_class) not in ("Material",):
+        asset = unreal.load_asset(path)
+        if not isinstance(asset, unreal.Material):
             continue
         covered = _master_has_child_instance(stem, SDF_INST_DIR)
-        if not covered and stem == "M_Master_Toon_Unified":
-            covered = _master_has_child_instance(stem, f"{MATERIALS_ROOT}/Instances/Environment")
+        if not covered and stem in ("M_Master_Toon_Unified", "M_Master_Toon_Universal"):
+            covered = _master_has_child_instance(stem, env_inst)
         if not covered and stem.startswith("M_Master_Impressionist"):
             covered = _master_has_child_instance(stem, IMP_INST_DIR)
         if stem == "M_Toon_SDF":
@@ -406,6 +441,9 @@ def _default_instance_spec(master_stem: str) -> dict:
 
 
 def main() -> int:
+    if _starters_only_requested():
+        return _run_starters_only()
+
     unreal.log("=== Ensure portfolio material instances ===")
     results = [ensure_instance(spec) for spec in MASTER_INSTANCES]
     coverage = audit_coverage()

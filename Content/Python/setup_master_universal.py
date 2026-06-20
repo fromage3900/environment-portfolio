@@ -10,10 +10,15 @@ Run (editor open):
   py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_master_universal.py" --force
 
 Then instances:
-  py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_universal_instances.py"
+  py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/apply_starter_instances.py"
+
+Parameter groups (Material Editor):
+  Textures | LayerA/B | Triplanar | Temporal | Nikki | Celestial | Gilding
+  ShadowDream | FlowerShadow | FairyDust | Magical | Character | Elemental | Cinematic
 """
 from __future__ import annotations
 
+import os
 import sys
 
 import unreal
@@ -23,6 +28,39 @@ MASTER_NAME = "M_Master_Toon_Universal"
 WAT = "/Engine/Functions/Engine_MaterialFunctions02/Texturing/WorldAlignedTexture"
 WAN = "/Engine/Functions/Engine_MaterialFunctions02/Texturing/WorldAlignedNormal"
 MF_SKIN_WRAP = f"{lib.FUNCTION_DIR}/MF_AnimeSkinWrap"
+
+# Material Instance editor parameter groups (keep in sync with starter_instances key_params)
+GROUP_PALETTE = "Palette"
+GROUP_HYBRID = "Hybrid"
+GROUP_UV = "UV"
+GROUP_SURFACE = "Surface"
+GROUP_TRIPLANAR = "Triplanar"
+GROUP_LAYER_A = "LayerA"
+GROUP_LAYER_B = "LayerB"
+GROUP_LAYERS = "Layers"
+GROUP_PARALLAX = "Parallax"
+GROUP_TEMPORAL = "Temporal"
+GROUP_NIKKI = "Nikki"
+GROUP_CELESTIAL = "Celestial"
+GROUP_GILDING = "Gilding"
+GROUP_SHADOW_DREAM = "ShadowDream"
+GROUP_SHADOW_GARDEN = "ShadowGarden"
+GROUP_FAIRY_DUST = "FairyDust"
+GROUP_MACRO_DETAIL = "MacroDetail"
+GROUP_MAGICAL = "Magical"
+GROUP_CHARACTER = "Character"
+GROUP_ELEMENTAL = "Elemental"
+GROUP_TIME_OF_DAY = "TimeOfDay"
+GROUP_WORLD = "World"
+GROUP_CINEMATIC = "Cinematic"
+GROUP_TEXTURES = "Textures"
+
+PARAM_GROUPS = {
+    "nikki": GROUP_NIKKI,
+    "flower_shadow": (GROUP_SHADOW_GARDEN, GROUP_SHADOW_DREAM),
+    "nebula": GROUP_CELESTIAL,
+    "magic": (GROUP_MAGICAL, GROUP_FAIRY_DUST),
+}
 
 WIRES: dict[str, bool] = {}
 
@@ -285,7 +323,9 @@ def build():
     lib.ensure_directory(lib.MASTER_DIR)
     path = lib.asset_path(lib.MASTER_DIR, MASTER_NAME)
     exists = unreal.EditorAssetLibrary.does_asset_exist(path)
-    force = any("force" in str(a).lower() for a in sys.argv)
+    force = any("force" in str(a).lower() for a in sys.argv) or os.environ.get(
+        "BS_MASTER_FORCE", ""
+    ).strip().lower() in ("1", "true", "yes")
     if exists and not force:
         unreal.log_warning(
             f"[Universal] {path} exists — skipping rebuild. "
@@ -437,15 +477,24 @@ def build():
     wire("tcB", t_mod, temp_col, "B")
     color = temp_col
 
-    # ---- Nikki dreamy layer ----
-    rim_color = lib.vector_param(m, "RimColor", "Nikki", (0.70, 0.85, 1.00, 1.0), -2100, 1040)
-    rim_power = lib.scalar_param(m, "RimPower", "Nikki", 3.0, -2100, 1140)
-    rim_int = lib.scalar_param(m, "RimIntensity", "Nikki", 0.0, -2100, 1240)
-    dream_tint = lib.vector_param(m, "DreamTint", "Nikki", (1.00, 0.85, 0.92, 1.0), -2100, 1340)
-    pastel = lib.scalar_param(m, "PastelLift", "Nikki", 0.0, -2100, 1440)
-    irid = lib.scalar_param(m, "Iridescence", "Nikki", 0.0, -2100, 1540)
+    # ---- Nikki dreamy layer (pastel lift, rim, sparkle, bloom) ----
+    rim_color = lib.vector_param(
+        m, "RimColor", "Nikki", (0.70, 0.85, 1.00, 1.0), -2100, 1040,
+        desc="Fresnel rim tint — anime edge glow",
+    )
+    rim_power = lib.scalar_param(m, "RimPower", "Nikki", 3.0, -2100, 1140, desc="Rim falloff exponent")
+    rim_int = lib.scalar_param(m, "RimIntensity", "Nikki", 0.0, -2100, 1240, desc="Rim brightness (0=off)")
+    dream_tint = lib.vector_param(
+        m, "DreamTint", "Nikki", (1.00, 0.85, 0.92, 1.0), -2100, 1340,
+        desc="Pastel color lift target",
+    )
+    pastel = lib.scalar_param(m, "PastelLift", "Nikki", 0.0, -2100, 1440, desc="Blend toward DreamTint")
+    irid = lib.scalar_param(m, "Iridescence", "Nikki", 0.0, -2100, 1540, desc="View-dependent rainbow sheen")
     irid_tint = lib.vector_param(m, "IridescenceTint", "Nikki", (0.80, 0.60, 1.00, 1.0), -2100, 1640)
-    spark_mask = lib.texture_param(m, "SparkleMask", "Nikki", -2100, 1740)
+    spark_mask = lib.texture_param(
+        m, "SparkleMask", "Nikki", -2100, 1740,
+        desc="Alpha sparkles / bokeh (T_Spark_*)",
+    )
     spark_scale = lib.scalar_param(m, "SparkleScale", "Nikki", 8.0, -2100, 1840)
     spark_int = lib.scalar_param(m, "SparkleIntensity", "Nikki", 0.0, -2100, 1940)
     spark_color = lib.vector_param(m, "SparkleColor", "Nikki", (1.00, 0.95, 0.80, 1.0), -2100, 2040)
@@ -454,12 +503,12 @@ def build():
     rim_soft = lib.scalar_param(m, "RimSoftness", "Nikki", 0.35, -2100, 2340)
     inner_glow = lib.scalar_param(m, "InnerGlowIntensity", "Nikki", 0.0, -2100, 2440)
     inner_color = lib.vector_param(m, "InnerGlowColor", "Nikki", (1.00, 0.92, 0.98, 1.0), -2100, 2540)
-    bloom = lib.scalar_param(m, "BloomBoost", "Nikki", 0.0, -2100, 2640)
+    bloom = lib.scalar_param(m, "BloomBoost", "Nikki", 0.0, -2100, 2640, desc="Extra emissive for post bloom")
     sheen = lib.scalar_param(m, "FabricSheen", "Nikki", 0.0, -2100, 2740)
     sheen_tint = lib.vector_param(m, "SheenTint", "Nikki", (1.00, 1.00, 1.00, 1.0), -2100, 2840)
     sheen_power = lib.scalar_param(m, "SheenPower", "Nikki", 6.0, -2100, 2940)
 
-    # ---- Celestial ramps (dark stars / nebula mid / galaxy highlight) ----
+    # ---- Celestial / nebula (procedural stars + nebula wash + galaxy core) ----
     const_low = lib.vector_param(m, "ConstellationRampLow", "Celestial", (0.02, 0.03, 0.10, 1.0), -2100, 3060)
     const_mid = lib.vector_param(m, "ConstellationRampMid", "Celestial", (0.45, 0.22, 0.55, 1.0), -2100, 3160)
     const_high = lib.vector_param(m, "ConstellationRampHigh", "Celestial", (0.85, 0.72, 1.00, 1.0), -2100, 3260)
@@ -468,8 +517,14 @@ def build():
     const_phase = lib.scalar_param(m, "ConstellationPhase", "Celestial", 0.0, -2100, 3560)
     star_int = lib.scalar_param(m, "CelestialStarIntensity", "Celestial", 1.0, -2100, 3660)
     star_twinkle = lib.scalar_param(m, "CelestialTwinkle", "Celestial", 0.0, -2100, 3760)
-    nebula_str = lib.scalar_param(m, "CelestialNebulaStrength", "Celestial", 0.65, -2100, 3860)
-    nebula_scale = lib.scalar_param(m, "CelestialNebulaScale", "Celestial", 0.35, -2100, 3960)
+    nebula_str = lib.scalar_param(
+        m, "CelestialNebulaStrength", "Celestial", 0.65, -2100, 3860,
+        desc="Soft nebula cloud wash strength",
+    )
+    nebula_scale = lib.scalar_param(
+        m, "CelestialNebulaScale", "Celestial", 0.35, -2100, 3960,
+        desc="Nebula noise scale (world XY)",
+    )
     galaxy_str = lib.scalar_param(m, "CelestialGalaxyStrength", "Celestial", 0.45, -2100, 4060)
     galaxy_scale = lib.scalar_param(m, "CelestialGalaxyScale", "Celestial", 0.12, -2100, 4160)
     galaxy_arms = lib.scalar_param(m, "CelestialGalaxyArms", "Celestial", 3.0, -2100, 4260)
@@ -481,13 +536,23 @@ def build():
     gold_emis = lib.vector_param(m, "GoldEmissive", "Gilding", (0.35, 0.25, 0.05, 1.0), -2100, 4680)
     curve_sens = lib.scalar_param(m, "CurvatureSensitivity", "Gilding", 2.5, -2100, 4780)
 
-    # ---- Dreamy shadows + shadow garden ----
+    # ---- Dreamy shadows (N·L tint in shadow) ----
     shadow_tint = lib.vector_param(m, "ShadowDreamTint", "ShadowDream", (0.48, 0.42, 0.62, 1.0), -2100, 4900)
     shadow_str = lib.scalar_param(m, "ShadowDreamStrength", "ShadowDream", 0.0, -2100, 5000)
     shadow_soft = lib.scalar_param(m, "ShadowSoftness", "ShadowDream", 0.5, -2100, 5100)
-    flower_str = lib.scalar_param(m, "ShadowFlowerStrength", "ShadowGarden", 0.0, -2100, 5220)
-    flower_scale = lib.scalar_param(m, "ShadowFlowerScale", "ShadowGarden", 5.0, -2100, 5320)
-    flower_color = lib.vector_param(m, "ShadowFlowerColor", "ShadowGarden", (0.92, 0.45, 0.72, 1.0), -2100, 5420)
+    # ---- Flower shadow garden (projected petal silhouettes in shadow) ----
+    flower_str = lib.scalar_param(
+        m, "ShadowFlowerStrength", "FlowerShadow", 0.0, -2100, 5220,
+        desc="Petal shadow projection intensity",
+    )
+    flower_scale = lib.scalar_param(
+        m, "ShadowFlowerScale", "FlowerShadow", 5.0, -2100, 5320,
+        desc="World-space petal repeat scale",
+    )
+    flower_color = lib.vector_param(
+        m, "ShadowFlowerColor", "FlowerShadow", (0.92, 0.45, 0.72, 1.0), -2100, 5420,
+        desc="Tint of projected flower shadows",
+    )
 
     # ---- Fairy dust motifs (0=off, 1=heart, 2=star, 3=flower, 4=moon) ----
     fairy_style = lib.scalar_param(m, "FairyMotifStyle", "FairyDust", 0.0, -2100, 5540)
@@ -935,13 +1000,16 @@ def build():
     wire("ndA", nrm, nrm_det, "A"); wire("ndB", det_s, nrm_det, "B"); wire("ndAlpha", det_str, nrm_det, "Alpha")
     nrm = nrm_det
 
-    # ---- Magical-girl transform (group 'Magical', defaults off = no change) ----
-    mtransform = lib.scalar_param(m, "MagicalTransform", "Magical", 0.0, 4800, 120)   # 0->1 henshin driver
-    motif_mask = tex_object(m, "MotifMask", 4800, 200, "Magical")                      # assign T_Magic_Heart/Bow/Star
+    # ---- Magical-girl transform (henshin wipe + motif mask; defaults off) ----
+    mtransform = lib.scalar_param(
+        m, "MagicalTransform", "Magical", 0.0, 4800, 120,
+        desc="0→1 henshin driver (sync MPC_Magical)",
+    )
+    motif_mask = tex_object(m, "MotifMask", 4800, 200, "Magical")  # T_Magic_Heart/Bow/Star
     motif_scale = lib.scalar_param(m, "MotifScale", "Magical", 6.0, 4800, 360)
     motif_color = lib.vector_param(m, "MotifColor", "Magical", (1.0, 0.45, 0.72, 1.0), 4800, 440)
     transform_glow = lib.scalar_param(m, "TransformGlow", "Magical", 3.0, 4800, 520)
-    wipe_soft = lib.scalar_param(m, "WipeSoftness", "Magical", 0.25, 4800, 600)
+    wipe_soft = lib.scalar_param(m, "WipeSoftness", "Magical", 0.25, 4800, 600, desc="World-Z wipe edge softness")
     magical_palette = lib.vector_param(m, "MagicalPalette", "Magical", (1.0, 0.72, 0.86, 1.0), 4800, 680)
     # wipe sweep over world-Z, revealed by MagicalTransform
     mg_wp = lib.create_expression(m, unreal.MaterialExpressionWorldPosition, 4800, 780)

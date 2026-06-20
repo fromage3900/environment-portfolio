@@ -73,11 +73,21 @@ MASTER_TEXTURE_DEFAULTS: dict[str, list[str]] = {
         COMPOSITING["noise_fine"],
     ),
     "SparkleMask": _chain(
-        f"{TEX}/sbs_-_noise_texture_pack_-_512x512/512x512/Perlin/Perlin_10_-_512x512.Perlin_10_-_512x512",
-        HEIGHT["perlin"],
+        "/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8",
+        "/Game/Alphas_Sparkles/T_Spark_Sparkle4.T_Spark_Sparkle4",
+        COMPOSITING["noise_fine"],
     ),
-    "FairyGlyphMask": _chain(COMPOSITING["abstract_a"], MASK["voronoi_swirl"]),
-    "MotifMask": _chain(COMPOSITING["abstract_a"], MASK["voronoi_crack"]),
+    "FairyGlyphMask": _chain(
+        "/Game/Sakura/T_Sakura_Petal.T_Sakura_Petal",
+        "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
+        MASK["voronoi_swirl"],
+        COMPOSITING["abstract_a"],
+    ),
+    "MotifMask": _chain(
+        "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
+        "/Game/Magical/T_Magic_Bow.T_Magic_Bow",
+        COMPOSITING["abstract_a"],
+    ),
 }
 
 # M_Master_Toon_Unified / M_Master_SDF_Toon (TextureSampleParameter2D, no Albedo slot)
@@ -125,6 +135,78 @@ INSTANCE_TEXTURE_DEFAULTS: dict[str, dict[str, list[str]]] = {
     "MI_Universal_CelestialNebula": {
         "Albedo": _chain(COMPOSITING["space_nebula"]),
         "SparkleMask": _chain(f"/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8"),
+    },
+    # Starter showcase set (Instances/Showcase) — see starter_instances.py
+    "MI_Show_Default": {
+        "Albedo": _chain(MARBLE["warm_stone"]),
+        "HeightMap": _chain(HEIGHT["perlin"]),
+        "NormalMap": _chain("/Engine/EngineMaterials/DefaultNormal.DefaultNormal"),
+    },
+    "MI_Show_StoneCliff": {
+        "Albedo": _chain(MARBLE["warm_stone"]),
+        "HeightMap": _chain(HEIGHT["perlin"], HEIGHT["perlin_sdf"]),
+        "DetailNormal": _chain(COMPOSITING["noise_fine"]),
+    },
+    "MI_Show_CherryBlossom": {
+        "Albedo": _chain(MARBLE["light"], COMPOSITING["gradient_warm"]),
+        "SparkleMask": _chain(
+            "/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8",
+            "/Game/Alphas_Sparkles/T_Spark_Sparkle4.T_Spark_Sparkle4",
+        ),
+        "FairyGlyphMask": _chain(
+            "/Game/Sakura/T_Sakura_Petal.T_Sakura_Petal",
+            "/Game/Sakura/T_Sakura_Blossom.T_Sakura_Blossom",
+        ),
+        "HeightMap": _chain(COMPOSITING["noise_fine"], HEIGHT["perlin"]),
+    },
+    "MI_Show_CelestialNebula": {
+        "Albedo": _chain(COMPOSITING["space_nebula"]),
+        "SparkleMask": _chain(
+            "/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8",
+            COMPOSITING["noise_fine"],
+        ),
+        "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
+    },
+    "MI_Show_FairyHearts": {
+        "Albedo": _chain(MARBLE["light"], COMPOSITING["abstract_a"]),
+        "SparkleMask": _chain(
+            "/Game/Alphas_Sparkles/T_Spark_Sparkle4.T_Spark_Sparkle4",
+            "/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8",
+        ),
+        "FairyGlyphMask": _chain(
+            "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
+            "/Game/_PROJECT/04_Materials/Textures/tileableheartsalpha.tileableheartsalpha",
+        ),
+        "MotifMask": _chain(
+            "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
+            COMPOSITING["abstract_a"],
+        ),
+        "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
+    },
+    "MI_Show_SkinSoft": {
+        "Albedo": _chain(MARBLE["light"], COMPOSITING["gradient_warm"]),
+        "HeightMap": _chain(COMPOSITING["noise_fine"], HEIGHT["perlin"]),
+    },
+    "MI_Show_ForestFoliage": {
+        "Albedo": _chain(MARBLE["dark"], MARBLE["cool_stone"]),
+        "HeightMap": _chain(MASK["voronoi_swirl"], HEIGHT["perlin"]),
+        "LayerB_Albedo": _chain(COMPOSITING["abstract_a"], MASK["voronoi_swirl"]),
+    },
+    "MI_Show_ContactRimHero": {
+        "Albedo": _chain(MARBLE["cool_stone"], MARBLE["warm_stone"]),
+        "HeightMap": _chain(HEIGHT["perlin"]),
+    },
+    "MI_Show_ElementHydro": {
+        "Albedo": _chain(MARBLE["cool_stone"], COMPOSITING["abstract_a"]),
+        "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
+    },
+    "MI_Show_InkWash": {
+        "Albedo": _chain(MARBLE["light"], COMPOSITING["abstract_a"]),
+        "MotifMask": _chain(
+            "/Game/Magical/T_Magic_Bow.T_Magic_Bow",
+            COMPOSITING["abstract_a"],
+        ),
+        "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
     },
     "MI_Trimsheet_VariationCracks": {
         "Albedo": _chain(MARBLE["warm_stone"]),
@@ -256,11 +338,35 @@ INSTANCE_TEXTURE_RULES: list[tuple[tuple[str, ...], dict[str, list[str]]]] = [
         },
     ),
     (
+        ("cherry", "blossom", "sakura", "petal", "shadowflower"),
+        {
+            "Albedo": _chain(MARBLE["light"], COMPOSITING["gradient_warm"]),
+            "SparkleMask": _chain(
+                "/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8",
+                "/Game/Alphas_Sparkles/T_Spark_Sparkle4.T_Spark_Sparkle4",
+            ),
+            "FairyGlyphMask": _chain(
+                "/Game/Sakura/T_Sakura_Petal.T_Sakura_Petal",
+                "/Game/Sakura/T_Sakura_Blossom.T_Sakura_Blossom",
+            ),
+            "HeightMap": _chain(COMPOSITING["noise_fine"], HEIGHT["perlin"]),
+        },
+    ),
+    (
         ("fairy", "dream", "blush", "lavender", "peach", "cotton", "pastel", "satin", "magical"),
         {
             "Albedo": _chain(COMPOSITING["abstract_a"], MARBLE["light"]),
             "SparkleMask": _chain(
-                f"{TEX}/sbs_-_noise_texture_pack_-_512x512/512x512/Perlin/Perlin_10_-_512x512.Perlin_10_-_512x512"
+                "/Game/Alphas_Sparkles/T_Spark_Twinkle8.T_Spark_Twinkle8",
+                "/Game/Alphas_Sparkles/T_Spark_Sparkle4.T_Spark_Sparkle4",
+            ),
+            "FairyGlyphMask": _chain(
+                "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
+                "/Game/Sakura/T_Sakura_Petal.T_Sakura_Petal",
+            ),
+            "MotifMask": _chain(
+                "/Game/Magical/T_Magic_Heart.T_Magic_Heart",
+                COMPOSITING["abstract_a"],
             ),
             "HeightMap": _chain(HEIGHT["perlin"], COMPOSITING["noise_fine"]),
         },
@@ -424,8 +530,41 @@ def apply_instance_texture_defaults(instance, instance_name: str, existing: dict
     return wired
 
 
+def refresh_starter_instance_textures(
+    showcase_dir: str = "/Game/EnvSandbox/Materials/Instances/Showcase",
+) -> dict[str, dict]:
+    """Apply compositing defaults to curated MI_Show_* starters only."""
+    import unreal
+    import material_lib as lib
+
+    try:
+        from starter_instances import STARTER_NAMES
+    except ImportError:
+        STARTER_NAMES = frozenset(k for k in INSTANCE_TEXTURE_DEFAULTS if k.startswith("MI_Show_"))
+
+    results: dict[str, dict] = {}
+    if not unreal.EditorAssetLibrary.does_directory_exist(showcase_dir):
+        return results
+    for asset_path in unreal.EditorAssetLibrary.list_assets(showcase_dir, recursive=False, include_folder=False):
+        base = asset_path.split(".", 1)[0]
+        stem = base.rsplit("/", 1)[-1]
+        if stem not in STARTER_NAMES:
+            continue
+        inst = unreal.load_asset(f"{base}.{stem}")
+        if not inst:
+            continue
+        wired = apply_instance_texture_defaults(inst, stem, {})
+        if wired:
+            lib.save_package(inst)
+        results[base] = wired
+    return results
+
+
 def refresh_all_instance_textures(instances_root: str = "/Game/EnvSandbox/Materials/Instances") -> dict[str, dict]:
-    """Walk portfolio MI folders and apply compositing texture defaults."""
+    """Walk portfolio MI folders and apply compositing texture defaults.
+
+    Prefer refresh_starter_instance_textures() for day-to-day pipeline work.
+    """
     import unreal
     import material_lib as lib
 

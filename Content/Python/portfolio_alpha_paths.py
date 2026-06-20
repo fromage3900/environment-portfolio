@@ -68,8 +68,21 @@ IMPORT_FROM_LIBRARY: list[tuple[str, str]] = [
     ("Sakura/T_Sakura_Blossom.png", "/Game/Sakura"),
 ]
 
-# Instance presets -> texture parameter wiring (setup_universal_instances.py)
+# Instance presets -> texture parameter wiring (setup_universal_instances.py, apply_starter_instances.py)
 INSTANCE_TEXTURE_WIRES: dict[str, dict[str, list[str] | str]] = {
+    # --- Starter showcase (canonical) ---
+    "MI_Show_CherryBlossom": {
+        "SparkleMask": SPARKLE_MASKS["twinkle"],
+        "FairyGlyphMask": FAIRY_GLYPH_MASKS["flower"],
+    },
+    "MI_Show_CelestialNebula": {"SparkleMask": SPARKLE_MASKS["twinkle"]},
+    "MI_Show_FairyHearts": {
+        "FairyGlyphMask": FAIRY_GLYPH_MASKS["heart"],
+        "MotifMask": MOTIF_MASKS["heart"],
+        "SparkleMask": SPARKLE_MASKS["sparkle4"],
+    },
+    "MI_Show_InkWash": {"MotifMask": MOTIF_MASKS["bow"]},
+    # --- Legacy MI_Universal_* (deprecated; kept for archived assets) ---
     "MI_Universal_FairyHearts": {"FairyGlyphMask": FAIRY_GLYPH_MASKS["heart"]},
     "MI_Universal_FairyStars": {"FairyGlyphMask": FAIRY_GLYPH_MASKS["star"]},
     "MI_Universal_FairyGarden": {"FairyGlyphMask": FAIRY_GLYPH_MASKS["flower"]},

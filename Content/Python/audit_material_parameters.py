@@ -12,11 +12,14 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+UE_CMD = Path(r"C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe")
+UPROJECT = PROJECT_ROOT / "BS_GodFile.uproject"
 CONTENT_ROOT = PROJECT_ROOT / "Content"
 MATERIALS_ROOT = CONTENT_ROOT / "EnvSandbox" / "Materials"
 REPORT_PATH = PROJECT_ROOT / "Saved" / "Audit" / "material_parameter_audit.json"
@@ -129,20 +132,26 @@ def scan_disk() -> list[dict]:
 
 def scan_editor() -> list[dict]:
     import unreal  # type: ignore
+    import material_lib as lib
 
     rows: list[dict] = []
     root = "/Game/EnvSandbox/Materials"
     paths = unreal.EditorAssetLibrary.list_assets(root, recursive=True, include_folder=False)
     for game_path in paths:
-        stem = game_path.rsplit("/", 1)[-1]
+        stem = lib.list_path_stem(game_path)
         if not any(stem.startswith(p) for p in KNOWN_PREFIXES):
             continue
         ad = unreal.EditorAssetLibrary.find_asset_data(game_path)
-        cls = str(ad.asset_class)
+        cls = str(getattr(ad, "asset_class", "") or "")
         if cls not in ("Material", "MaterialInstanceConstant"):
-            continue
+            if lib.asset_class_name(ad) not in ("Material", "MaterialInstanceConstant"):
+                continue
 
         asset = unreal.load_asset(game_path)
+        if not asset:
+            asset = lib.load_asset_from_list_path(game_path)
+        if not asset:
+            continue
         family = classify_family(game_path)
         params: list[dict] = []
 
@@ -226,20 +235,61 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
-def main() -> int:
-    editor_mode = False
+def _in_ue() -> bool:
     try:
         import unreal  # noqa: F401
-
-        editor_mode = True
+        return True
     except ImportError:
-        pass
+        return False
 
-    rows = scan_editor() if editor_mode else scan_disk()
+
+def _run_in_ue() -> int:
+    rows = scan_editor()
+    summary = summarize(rows)
+    report = {
+        "mode": "editor",
+        "summary": summary,
+        "materials": rows,
+        "canonical_schema": CANONICAL,
+    }
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    print("=" * 60)
+    print("Material Parameter Audit")
+    print("=" * 60)
+    print(f"Mode: editor")
+    print(f"Materials scanned: {summary['material_count']}")
+    print(f"By family: {summary['by_family']}")
+    print(f"Placeholder params: {summary['placeholder_count']}")
+    print(f"Missing canonical: {summary['missing_canonical_count']}")
+    print(f"Report: {REPORT_PATH}")
+    return 0
+
+
+def main() -> int:
+    if _in_ue():
+        return _run_in_ue()
+
+    if "--disk" not in sys.argv and UE_CMD.exists():
+        log = PROJECT_ROOT / "Saved" / "Logs" / "material_parameter_audit.log"
+        cmd = [
+            str(UE_CMD),
+            str(UPROJECT),
+            f"-ExecutePythonScript={(PROJECT_ROOT / 'Content/Python/audit_material_parameters.py').as_posix()}",
+            "-stdout",
+            "-unattended",
+            "-nosplash",
+            "-DisablePlugins=Monolith",
+            f"-log={log}",
+        ]
+        print(f"Material parameter audit -> {log}")
+        return subprocess.run(cmd, cwd=str(PROJECT_ROOT)).returncode
+
+    rows = scan_disk()
     summary = summarize(rows)
 
     report = {
-        "mode": "editor" if editor_mode else "disk",
+        "mode": "disk",
         "summary": summary,
         "materials": rows,
         "canonical_schema": CANONICAL,
