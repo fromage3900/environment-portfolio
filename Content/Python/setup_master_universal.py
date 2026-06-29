@@ -1,9 +1,9 @@
-"""Build M_Master_Toon_Universal — the 'reach for every scene' master.
+"""Build M_Master_Toon_Universal â€” the 'reach for every scene' master.
 
 Hybrid texture/procedural, dual texture layers (A/B) with per-layer maps and parallax,
 temporal boil/smear UV stylization, triplanar, Nikki dreamy glow, celestial ramps,
 curvature gold leaf, fairy-dust highlight motifs, dreamy shadow tinting,
-shadow-garden flowers, and metallic ORM blend — all defaulting to neutral (0).
+shadow-garden flowers, and metallic ORM blend â€” all defaulting to neutral (0).
 
 Run (editor open):
   py "G:/EnvironmentPortfolio/BS_GodFile/Content/Python/setup_master_universal.py"
@@ -31,12 +31,20 @@ MF_SKIN_WRAP = f"{lib.FUNCTION_DIR}/MF_AnimeSkinWrap"
 MF_SPACE_PARALLAX = f"{lib.FUNCTION_DIR}/MF_SpaceParallax"
 MF_PARALLAX_CORE = f"{lib.FUNCTION_DIR}/MF_ParallaxCore"
 MF_NORMAL_ADJUST = f"{lib.FUNCTION_DIR}/MF_NormalAdjust"
+MF_COLOR_RAMP3 = f"{lib.FUNCTION_DIR}/MF_ColorRamp3"
+MF_MADOKA = f"{lib.FUNCTION_DIR}/MF_Madoka"
+MF_ITTO = f"{lib.FUNCTION_DIR}/MF_Itto"
+MF_NIKKI_DREAM = f"{lib.FUNCTION_DIR}/MF_NikkiDreamGrade"
+MF_NIKKI_RIM = f"{lib.FUNCTION_DIR}/MF_NikkiRimGlow"
+MF_NIKKI_SPARKLE = f"{lib.FUNCTION_DIR}/MF_NikkiSparkle"
+MF_NIKKI_IRID = f"{lib.FUNCTION_DIR}/MF_NikkiIridescenceSheen"
 
 # Material Instance editor parameter groups (keep in sync with starter_instances key_params)
 GROUP_PALETTE = "Palette"
 GROUP_HYBRID = "Hybrid"
 GROUP_UV = "UV"
 GROUP_SURFACE = "Surface"
+GROUP_CHANNELS = "Channels"
 GROUP_TRIPLANAR = "Triplanar"
 GROUP_LAYER_A = "LayerA"
 GROUP_LAYER_B = "LayerB"
@@ -57,6 +65,8 @@ GROUP_TIME_OF_DAY = "TimeOfDay"
 GROUP_WORLD = "World"
 GROUP_CINEMATIC = "Cinematic"
 GROUP_TEXTURES = "Textures"
+GROUP_MADOKA = "Madoka"
+GROUP_ITTO = "Itto"
 
 PARAM_GROUPS = {
     "nikki": GROUP_NIKKI,
@@ -95,8 +105,10 @@ def tex_object(m, name, x, y, group: str = "Textures"):
 
 
 def _wire_catalog_texture(expr, param_name: str) -> None:
+    import importlib
     import portfolio_texture_catalog as catalog
 
+    catalog = importlib.reload(catalog)
     candidates = catalog.MASTER_TEXTURE_DEFAULTS.get(param_name)
     if candidates:
         lib.set_expression_texture(expr, candidates)
@@ -108,6 +120,109 @@ def mf_call(m, path, x, y):
     c = lib.create_expression(m, unreal.MaterialExpressionMaterialFunctionCall, x, y)
     c.set_editor_property("material_function", unreal.load_asset(path))
     return c
+
+
+def ramp3_call(m, low, mid, high, pos_mid, mask, contrast, tag: str, x: int, y: int):
+    """MF_ColorRamp3 wrapper; returns None if asset missing."""
+    call = mf_call(m, MF_COLOR_RAMP3, x, y)
+    if not call:
+        return None
+    wire(f"{tag}_rl", low, call, "RampLow")
+    wire(f"{tag}_rm", mid, call, "RampMid")
+    wire(f"{tag}_rh", high, call, "RampHigh")
+    wire(f"{tag}_rp", pos_mid, call, "RampPosMid")
+    wire(f"{tag}_msk", mask, call, "Mask")
+    wire(f"{tag}_rc", contrast, call, "RampContrast")
+    return call
+
+
+def nikki_mf_chain_available() -> bool:
+    return all(
+        unreal.EditorAssetLibrary.does_asset_exist(p)
+        for p in (MF_NIKKI_DREAM, MF_NIKKI_RIM, MF_NIKKI_SPARKLE, MF_NIKKI_IRID)
+    )
+
+
+def apply_nikki_mf_chain(
+    m,
+    base_color,
+    nrm,
+    uv,
+    *,
+    pastel,
+    dream_tint,
+    dream_sat,
+    dream_contrast,
+    dream_shadow_lift,
+    rim_color,
+    rim_int,
+    rim_width,
+    glow_int,
+    bloom,
+    spark_mask,
+    spark_int,
+    spark_thresh,
+    spark_color,
+    irid,
+    irid_tint,
+    irid_pow,
+    sheen,
+    sheen_tint,
+    tag: str = "nk",
+):
+    """Landscape-parity MF_Nikki* chain; blends graded colour by combined Nikki weights."""
+    nk_col = base_color
+    dream_mf = mf_call(m, MF_NIKKI_DREAM, 11800, 400)
+    if dream_mf:
+        wire(f"{tag}_dream_base", base_color, dream_mf, "BaseColor")
+        wire(f"{tag}_dream_pastel", pastel, dream_mf, "PastelLift")
+        wire(f"{tag}_dream_tint", dream_tint, dream_mf, "DreamTint")
+        wire(f"{tag}_dream_sat", dream_sat, dream_mf, "DreamSaturation")
+        wire(f"{tag}_dream_con", dream_contrast, dream_mf, "DreamContrast")
+        wire(f"{tag}_dream_sh", dream_shadow_lift, dream_mf, "DreamShadowLift")
+        nk_col = dream_mf
+    rim_mf = mf_call(m, MF_NIKKI_RIM, 12000, 400)
+    if rim_mf:
+        wire(f"{tag}_rim_base", nk_col, rim_mf, "BaseColor")
+        wire(f"{tag}_rim_nrm", nrm, rim_mf, "Normal")
+        wire(f"{tag}_rim_col", rim_color, rim_mf, "RimColor")
+        wire(f"{tag}_rim_int", rim_int, rim_mf, "RimIntensity")
+        wire(f"{tag}_rim_w", rim_width, rim_mf, "RimWidth")
+        wire(f"{tag}_glow_int", glow_int, rim_mf, "GlowIntensity")
+        wire(f"{tag}_bloom", bloom, rim_mf, "BloomBoost")
+        nk_col = rim_mf
+    spark_mf = mf_call(m, MF_NIKKI_SPARKLE, 12200, 400)
+    if spark_mf:
+        wire(f"{tag}_sp_base", nk_col, spark_mf, "BaseColor")
+        wire(f"{tag}_sp_uv", uv, spark_mf, "UV")
+        wire(f"{tag}_sp_mask", spark_mask, spark_mf, "SparkleMask", "Texture")
+        wire(f"{tag}_sp_int", spark_int, spark_mf, "SparkleIntensity")
+        wire(f"{tag}_sp_thr", spark_thresh, spark_mf, "SparkleThreshold")
+        wire(f"{tag}_sp_col", spark_color, spark_mf, "SparkleColor")
+        nk_col = spark_mf
+    irid_mf = mf_call(m, MF_NIKKI_IRID, 12400, 400)
+    if irid_mf:
+        wire(f"{tag}_ir_base", nk_col, irid_mf, "BaseColor")
+        wire(f"{tag}_ir_nrm", nrm, irid_mf, "Normal")
+        wire(f"{tag}_ir_amt", irid, irid_mf, "Iridescence")
+        wire(f"{tag}_ir_tint", irid_tint, irid_mf, "IridescenceTint")
+        wire(f"{tag}_ir_pow", irid_pow, irid_mf, "IridescencePower")
+        wire(f"{tag}_ir_sheen", sheen, irid_mf, "FabricSheen")
+        wire(f"{tag}_ir_stint", sheen_tint, irid_mf, "SheenTint")
+        nk_col = irid_mf
+    nk_w_a = lib.create_expression(m, unreal.MaterialExpressionAdd, 12600, 520)
+    wire(f"{tag}_wA", rim_int, nk_w_a, "A")
+    wire(f"{tag}_wB", glow_int, nk_w_a, "B")
+    nk_w_b = lib.create_expression(m, unreal.MaterialExpressionAdd, 12760, 520)
+    wire(f"{tag}_w2A", nk_w_a, nk_w_b, "A")
+    wire(f"{tag}_w2B", spark_int, nk_w_b, "B")
+    nk_w = lib.create_expression(m, unreal.MaterialExpressionSaturate, 12920, 520)
+    wire(f"{tag}_w_sat", nk_w_b, nk_w, "Input")
+    nk_blend = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 13080, 400)
+    wire(f"{tag}_blA", base_color, nk_blend, "A")
+    wire(f"{tag}_blB", nk_col, nk_blend, "B")
+    wire(f"{tag}_bl_alpha", nk_w, nk_blend, "Alpha")
+    return nk_blend
 
 
 def static_switch(m, name, group, x, y, default=False):
@@ -207,24 +322,47 @@ def apply_temporal_uv(m, uv, temporal_str, wind, noise_scale, smear, boil, tag: 
 def parallax_uv_offset(
     m, uv, height_tex, scale, layer_scale, strength, steps, mode, height_mul, tag: str, y_base: int = 6600,
 ):
-    """MF_ParallaxCore — height parallax UV offset (modes 0/1/2)."""
-    call = mf_call(m, MF_PARALLAX_CORE, -2400, y_base)
-    if not call:
-        unreal.log_warning(f"[Universal] MF_ParallaxCore missing — {tag} passthrough UV")
-        return uv
-    wire(f"{tag}_px_uv", uv, call, "UV")
-    wire(f"{tag}_px_ht", height_tex, call, "HeightTexture", "Height")
-    wire(f"{tag}_px_sc", scale, call, "ParallaxScale")
-    wire(f"{tag}_px_lsc", layer_scale, call, "LayerParallaxScale")
-    wire(f"{tag}_px_str", strength, call, "ParallaxStrength")
-    wire(f"{tag}_px_h", height_mul, call, "ParallaxHeight")
-    wire(f"{tag}_px_st", steps, call, "ParallaxSteps")
-    wire(f"{tag}_px_md", mode, call, "ParallaxMode")
-    return call
+    """Inline height parallax UV offset; avoids stale MF_ParallaxCore pin typing."""
+    h_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -2400, y_base)
+    wire(f"{tag}_px_ht_obj", height_tex, h_s, "Tex", "TextureObject")
+    wire(f"{tag}_px_ht_uv", uv, h_s, "UVs", "Coordinates")
+    h_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -2240, y_base)
+    h_r.set_editor_property("r", True)
+    h_r.set_editor_property("g", False)
+    h_r.set_editor_property("b", False)
+    h_r.set_editor_property("a", False)
+    wire(f"{tag}_px_hmask", h_s, h_r, "")
+    h_center = lib.create_expression(m, unreal.MaterialExpressionSubtract, -2080, y_base)
+    wire(f"{tag}_px_hcA", h_r, h_center, "A")
+    wire(f"{tag}_px_hcB", const1(m, -2240, y_base + 120, 0.5), h_center, "B")
+    h_scale_a = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1920, y_base)
+    wire(f"{tag}_px_sA", h_center, h_scale_a, "A")
+    wire(f"{tag}_px_sB", scale, h_scale_a, "B")
+    h_scale_b = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1760, y_base)
+    wire(f"{tag}_px_lsA", h_scale_a, h_scale_b, "A")
+    wire(f"{tag}_px_lsB", layer_scale, h_scale_b, "B")
+    h_scale_c = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1600, y_base)
+    wire(f"{tag}_px_stA", h_scale_b, h_scale_c, "A")
+    wire(f"{tag}_px_stB", strength, h_scale_c, "B")
+    h_depth = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1440, y_base)
+    wire(f"{tag}_px_dA", h_scale_c, h_depth, "A")
+    wire(f"{tag}_px_dB", height_mul, h_depth, "B")
+    view = lib.create_expression(m, unreal.MaterialExpressionCameraVectorWS, -1920, y_base + 180)
+    vx = mask_channel(m, view, "r", f"{tag}_px_vx", -1760, y_base + 160)
+    vy = mask_channel(m, view, "g", f"{tag}_px_vy", -1760, y_base + 240)
+    vxy = lib.create_expression(m, unreal.MaterialExpressionAppendVector, -1600, y_base + 200)
+    lib.connect_append2(vx, vy, vxy)
+    offset = lib.create_expression(m, unreal.MaterialExpressionMultiply, -1280, y_base + 80)
+    wire(f"{tag}_px_oA", vxy, offset, "A")
+    wire(f"{tag}_px_oB", h_depth, offset, "B")
+    uv_out = lib.create_expression(m, unreal.MaterialExpressionAdd, -1120, y_base + 40)
+    wire(f"{tag}_px_uvA", uv, uv_out, "A")
+    wire(f"{tag}_px_uvB", offset, uv_out, "B")
+    return uv_out
 
 
 def adjust_normal_map(m, nrm_sample, n_str, n_pow, layer_str, tag: str, y: int):
-    """MF_NormalAdjust — strength, power, per-layer scale on sampled normal."""
+    """MF_NormalAdjust â€” strength, power, per-layer scale on sampled normal."""
     call = mf_call(m, MF_NORMAL_ADJUST, -1280, y)
     if not call:
         return nrm_sample
@@ -236,9 +374,10 @@ def adjust_normal_map(m, nrm_sample, n_str, n_pow, layer_str, tag: str, y: int):
 
 
 def sample_maps_uv(
-    m, uv, albedo, normal, orm, tri_tiling, tag: str, y0: int,
+    m, uv, albedo, normal, orm, height, roughness_map, metallic_map,
+    tri_tiling, tag: str, y0: int, tri_sw_param=None,
 ):
-    """UV-path texture samples + triplanar switch."""
+    """UV-path texture samples + shared triplanar/world-aligned switch."""
     alb_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0)
     wire(f"{tag}_alb_obj", albedo, alb_s, "Tex", "TextureObject")
     wire(f"{tag}_alb_uv", uv, alb_s, "UVs", "Coordinates")
@@ -248,28 +387,80 @@ def sample_maps_uv(
     orm_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0 + 320)
     wire(f"{tag}_orm_obj", orm, orm_s, "Tex", "TextureObject")
     wire(f"{tag}_orm_uv", uv, orm_s, "UVs", "Coordinates")
+    hgt_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0 + 480)
+    wire(f"{tag}_hgt_obj", height, hgt_s, "Tex", "TextureObject")
+    wire(f"{tag}_hgt_uv", uv, hgt_s, "UVs", "Coordinates")
+    rough_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0 + 640)
+    wire(f"{tag}_rough_obj", roughness_map, rough_s, "Tex", "TextureObject")
+    wire(f"{tag}_rough_uv", uv, rough_s, "UVs", "Coordinates")
+    metal_s = lib.create_expression(m, unreal.MaterialExpressionTextureSample, -1420, y0 + 800)
+    wire(f"{tag}_metal_obj", metallic_map, metal_s, "Tex", "TextureObject")
+    wire(f"{tag}_metal_uv", uv, metal_s, "UVs", "Coordinates")
 
     waT = mf_call(m, WAT, -1240, y0)
     waN = mf_call(m, WAN, -1240, y0 + 160)
     waR = mf_call(m, WAT, -1240, y0 + 320)
+    waH = mf_call(m, WAT, -1240, y0 + 480)
+    waRo = mf_call(m, WAT, -1240, y0 + 640)
+    waM = mf_call(m, WAT, -1240, y0 + 800)
     for ttag, fn, tobj in (
         (f"{tag}_triA", waT, albedo),
         (f"{tag}_triN", waN, normal),
         (f"{tag}_triR", waR, orm),
+        (f"{tag}_triH", waH, height),
+        (f"{tag}_triRo", waRo, roughness_map),
+        (f"{tag}_triM", waM, metallic_map),
     ):
         if fn:
             wire(f"{ttag}_obj", tobj, fn, "TextureObject (T2d)", "TextureObject", "Tex")
             wire(f"{ttag}_size", tri_tiling, fn, "Texture Size", "WorldSize", "Size")
 
-    def tri_sw(tt, uv_e, tri_e, yy):
+    def project_switch(tt, uv_e, tri_e, yy):
+        if tri_sw_param is not None:
+            WIRES[f"{tt}_sw"] = lib.connect_static_switch(tri_sw_param, tri_e or uv_e, uv_e)
+            return tri_sw_param
         sw = static_switch(m, "bTriplanar", "Triplanar", -1060, yy)
         WIRES[f"{tt}_sw"] = lib.connect_static_switch(sw, tri_e or uv_e, uv_e)
         return sw
 
-    alb = tri_sw(f"{tag}_swA", alb_s, waT, y0)
-    nrm = tri_sw(f"{tag}_swN", nrm_s, waN, y0 + 160)
-    orm_out = tri_sw(f"{tag}_swR", orm_s, waR, y0 + 320)
-    return alb, nrm, orm_out
+    alb = project_switch(f"{tag}_swA", alb_s, waT, y0)
+    nrm = project_switch(f"{tag}_swN", nrm_s, waN, y0 + 160)
+    orm_out = project_switch(f"{tag}_swR", orm_s, waR, y0 + 320)
+    hgt = project_switch(f"{tag}_swH", hgt_s, waH, y0 + 480)
+    rough = project_switch(f"{tag}_swRo", rough_s, waRo, y0 + 640)
+    metal = project_switch(f"{tag}_swM", metal_s, waM, y0 + 800)
+    return alb, nrm, orm_out, hgt, rough, metal
+
+
+def height_to_normal(m, height_expr, strength, tag: str, x: int, y: int):
+    """Convert grayscale height information into tangent-like normal detail."""
+    h_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, x, y)
+    h_r.set_editor_property("r", True)
+    h_r.set_editor_property("g", False)
+    h_r.set_editor_property("b", False)
+    h_r.set_editor_property("a", False)
+    wire(f"{tag}_mask", height_expr, h_r, "")
+    dx = lib.create_expression(m, unreal.MaterialExpressionDDX, x + 160, y - 60)
+    dy = lib.create_expression(m, unreal.MaterialExpressionDDY, x + 160, y + 60)
+    WIRES[f"{tag}_dx"] = lib.connect_unary(h_r, dx)
+    WIRES[f"{tag}_dy"] = lib.connect_unary(h_r, dy)
+    sx = lib.create_expression(m, unreal.MaterialExpressionMultiply, x + 320, y - 60)
+    sy = lib.create_expression(m, unreal.MaterialExpressionMultiply, x + 320, y + 60)
+    inv_strength = lib.create_expression(m, unreal.MaterialExpressionMultiply, x + 160, y + 180)
+    wire(f"{tag}_isA", strength, inv_strength, "A")
+    wire(f"{tag}_isB", const1(m, x, y + 180, -1.0), inv_strength, "B")
+    wire(f"{tag}_sxA", dx, sx, "A")
+    wire(f"{tag}_sxB", inv_strength, sx, "B")
+    wire(f"{tag}_syA", dy, sy, "A")
+    wire(f"{tag}_syB", inv_strength, sy, "B")
+    xy = lib.create_expression(m, unreal.MaterialExpressionAppendVector, x + 500, y)
+    lib.connect_append2(sx, sy, xy)
+    xyz = lib.create_expression(m, unreal.MaterialExpressionAppendVector, x + 680, y)
+    wire(f"{tag}_xy", xy, xyz, "A")
+    wire(f"{tag}_z", const1(m, x + 500, y + 180, 1.0), xyz, "B")
+    norm = lib.create_expression(m, unreal.MaterialExpressionNormalize, x + 860, y)
+    WIRES[f"{tag}_norm"] = lib.connect_unary(xyz, norm)
+    return norm
 
 
 def lerp3(m, a, b, alpha, tag: str, x: int, y: int):
@@ -298,7 +489,7 @@ def mask_channel(m, expr, channel: str, tag: str, x: int, y: int):
 
 
 def concavity_mask(m, curve_abs, sens, tag: str, x: int, y: int):
-    """High in cavities — inverse of convex curvature magnitude."""
+    """High in cavities â€” inverse of convex curvature magnitude."""
     sc = lib.create_expression(m, unreal.MaterialExpressionMultiply, x, y)
     wire(f"{tag}_scA", curve_abs, sc, "A")
     wire(f"{tag}_scB", sens, sc, "B")
@@ -307,6 +498,74 @@ def concavity_mask(m, curve_abs, sens, tag: str, x: int, y: int):
     sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, x + 280, y)
     wire(f"{tag}_sat", inv, sat, "Input")
     return sat
+
+
+def mul2(m, a, b, tag: str, x: int, y: int):
+    e = lib.create_expression(m, unreal.MaterialExpressionMultiply, x, y)
+    wire(f"{tag}_A", a, e, "A")
+    wire(f"{tag}_B", b, e, "B")
+    return e
+
+
+def add2(m, a, b, tag: str, x: int, y: int):
+    e = lib.create_expression(m, unreal.MaterialExpressionAdd, x, y)
+    wire(f"{tag}_A", a, e, "A")
+    wire(f"{tag}_B", b, e, "B")
+    return e
+
+
+def sub2(m, a, b, tag: str, x: int, y: int):
+    e = lib.create_expression(m, unreal.MaterialExpressionSubtract, x, y)
+    wire(f"{tag}_A", a, e, "A")
+    wire(f"{tag}_B", b, e, "B")
+    return e
+
+
+def sat1(m, a, tag: str, x: int, y: int):
+    e = lib.create_expression(m, unreal.MaterialExpressionSaturate, x, y)
+    wire(f"{tag}_in", a, e, "Input")
+    return e
+
+
+def advanced_layer_alpha(
+    m, base_height_sample, overlay_height_sample, manual_alpha, blend_mode,
+    height_bias, height_sharpness, blend_softness, manual_mix,
+    base_height_scale, overlay_height_scale, height_invert, alpha_bias, alpha_contrast,
+    tag, x, y,
+):
+    base_h = mask_channel(m, base_height_sample, "r", f"{tag}_base_h", x, y)
+    over_h = mask_channel(m, overlay_height_sample, "r", f"{tag}_over_h", x, y + 100)
+    base_scaled = mul2(m, base_h, base_height_scale, f"{tag}_base_scale", x + 160, y)
+    over_scaled = mul2(m, over_h, overlay_height_scale, f"{tag}_over_scale", x + 160, y + 100)
+    over_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, x + 320, y + 120)
+    wire(f"{tag}_over_inv", over_scaled, over_inv, "Input")
+    over_shaped = lerp3(m, over_scaled, over_inv, height_invert, f"{tag}_height_invert", x + 480, y + 100)
+    over_bias = add2(m, over_shaped, height_bias, f"{tag}_height_bias", x + 640, y + 80)
+    delta = sub2(m, over_bias, base_scaled, f"{tag}_delta", x + 800, y + 40)
+    scaled = mul2(m, delta, height_sharpness, f"{tag}_sharp", x + 960, y + 40)
+    raw = add2(m, scaled, const1(m, x + 960, y + 140, 0.5), f"{tag}_raw", x + 1120, y + 40)
+    height_alpha = sat1(m, raw, f"{tag}_height_sat", x + 1280, y + 40)
+    height_soft = lerp3(m, height_alpha, manual_alpha, blend_softness, f"{tag}_soft", x + 1440, y + 40)
+    mix_mode = lerp3(m, height_soft, manual_alpha, manual_mix, f"{tag}_manual_mix", x + 1600, y + 40)
+    mode1 = sub2(m, blend_mode, const1(m, x + 1440, y + 180, 1.0), f"{tag}_m1", x + 1600, y + 180)
+    mode1_abs = lib.create_expression(m, unreal.MaterialExpressionAbs, x + 1760, y + 180)
+    wire(f"{tag}_m1_abs", mode1, mode1_abs, "Input")
+    mode1_w = sat1(m, mode1_abs, f"{tag}_m1_sat", x + 1920, y + 180)
+    mode1_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, x + 2080, y + 180)
+    wire(f"{tag}_m1_inv", mode1_w, mode1_inv, "Input")
+    manual_or_height = lerp3(m, manual_alpha, height_soft, mode1_inv, f"{tag}_mode1", x + 2240, y + 40)
+    mode2 = sub2(m, blend_mode, const1(m, x + 1440, y + 280, 2.0), f"{tag}_m2", x + 1600, y + 280)
+    mode2_abs = lib.create_expression(m, unreal.MaterialExpressionAbs, x + 1760, y + 280)
+    wire(f"{tag}_m2_abs", mode2, mode2_abs, "Input")
+    mode2_w = sat1(m, mode2_abs, f"{tag}_m2_sat", x + 1920, y + 280)
+    mode2_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, x + 2080, y + 280)
+    wire(f"{tag}_m2_inv", mode2_w, mode2_inv, "Input")
+    pre = lerp3(m, manual_or_height, mix_mode, mode2_inv, f"{tag}_mode2", x + 2400, y + 40)
+    biased = add2(m, pre, alpha_bias, f"{tag}_alpha_bias", x + 2560, y + 40)
+    centered = sub2(m, biased, const1(m, x + 2560, y + 140, 0.5), f"{tag}_alpha_center", x + 2720, y + 40)
+    contrasted = mul2(m, centered, alpha_contrast, f"{tag}_alpha_contrast", x + 2880, y + 40)
+    recentered = add2(m, contrasted, const1(m, x + 2880, y + 140, 0.5), f"{tag}_alpha_recenter", x + 3040, y + 40)
+    return sat1(m, recentered, f"{tag}_alpha_sat", x + 3200, y + 40)
 
 
 def _clear_material_graph(material) -> None:
@@ -327,7 +586,7 @@ def build():
     ).strip().lower() in ("1", "true", "yes")
     if exists and not force:
         unreal.log_warning(
-            f"[Universal] {path} exists — skipping rebuild. "
+            f"[Universal] {path} exists â€” skipping rebuild. "
             "Delete in Content Browser or run with --force."
         )
         try:
@@ -347,7 +606,7 @@ def build():
         at = unreal.AssetToolsHelpers.get_asset_tools()
         m = at.create_asset(MASTER_NAME, lib.MASTER_DIR, unreal.Material, unreal.MaterialFactoryNew())
     if not m:
-        raise RuntimeError("create_asset failed — close material tabs and retry")
+        raise RuntimeError("create_asset failed â€” close material tabs and retry")
 
     if not unreal.EditorAssetLibrary.does_asset_exist(f"{lib.FUNCTION_DIR}/MF_SpaceParallax"):
         try:
@@ -356,7 +615,7 @@ def build():
             mf_setup.build_all(force=False)
         except Exception as exc:
             unreal.log_warning(f"[Universal] MF library: {exc}")
-    for _mf in ("MF_ParallaxCore", "MF_NormalAdjust"):
+    for _mf in ("MF_ParallaxCore", "MF_NormalAdjust", "MF_ColorRamp3", "MF_Madoka", "MF_Itto"):
         if not unreal.EditorAssetLibrary.does_asset_exist(f"{lib.FUNCTION_DIR}/{_mf}"):
             try:
                 import setup_material_functions as mf_setup
@@ -367,23 +626,65 @@ def build():
                 unreal.log_warning(f"[Universal] MF parallax/normal: {exc}")
                 break
 
+    use_nikki_mf = nikki_mf_chain_available()
+    if use_nikki_mf:
+        unreal.log("[Universal] Nikki MF chain found â€” inline rim/sparkle/irid skipped")
+    else:
+        unreal.log_warning("[Universal] Nikki MF chain missing â€” using inline Nikki stack")
+
     m.set_editor_property("material_domain", unreal.MaterialDomain.MD_SURFACE)
     m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_OPAQUE)
     lib.try_set_editor_property(m, "bUsesSubstrate", True)
 
     # ---- core parameters ----
-    base_tint = lib.vector_param(m, "BaseTint", "Palette", (0.60, 0.55, 0.50, 1.0), -2100, -220)
-    tex_weight = lib.scalar_param(m, "TextureWeight", "Hybrid", 1.0, -2100, -100)
+    base_tint = lib.vector_param(
+        m, "BaseTint", "Palette", (0.50, 0.50, 0.50, 1.0), -2100, -220,
+        desc="Neutral albedo fallback; tint per material instance rather than in the master",
+    )
+    palette_ramp_low = lib.vector_param(
+        m, "PaletteRampLow", "Palette", (0.35, 0.30, 0.28, 1.0), -2100, -120,
+        desc="Global 3-stop palette ramp â€” shadow stop",
+    )
+    palette_ramp_mid = lib.vector_param(
+        m, "PaletteRampMid", "Palette", (0.55, 0.50, 0.45, 1.0), -2100, -20,
+        desc="Global palette ramp â€” mid stop",
+    )
+    palette_ramp_high = lib.vector_param(
+        m, "PaletteRampHigh", "Palette", (0.78, 0.72, 0.68, 1.0), -2100, 80,
+        desc="Global palette ramp â€” highlight stop",
+    )
+    palette_ramp_str = lib.scalar_param(
+        m, "PaletteRampStrength", "Palette", 0.0, -2100, 180,
+        desc="Blend palette ramp onto base colour (0=off)",
+    )
+    palette_ramp_driver = lib.scalar_param(
+        m, "PaletteRampDriver", "Palette", 0.0, -2100, 280,
+        desc="0=off 1=albedo luma 2=height 3=ORM AO",
+    )
+    tex_weight = lib.scalar_param(m, "TextureWeight", "Hybrid", 0.0, -2100, -100)
     uv_scale = lib.scalar_param(m, "UVScale", "UV", 1.0, -2100, 20)
     roughness_s = lib.scalar_param(m, "Roughness", "Surface", 0.70, -2100, 140)
     metallic_s = lib.scalar_param(m, "Metallic", "Surface", 0.0, -2100, 240)
-    tri_tiling = lib.scalar_param(m, "TriplanarTiling", "Triplanar", 256.0, -2100, 340)
+    roughness_scale = lib.scalar_param(m, "RoughnessScale", GROUP_CHANNELS, 1.0, -2100, 300)
+    roughness_bias = lib.scalar_param(m, "RoughnessBias", GROUP_CHANNELS, 0.0, -2100, 320)
+    metallic_scale = lib.scalar_param(m, "MetallicScale", GROUP_CHANNELS, 1.0, -2100, 360)
+    metallic_bias = lib.scalar_param(m, "MetallicBias", GROUP_CHANNELS, 0.0, -2100, 380)
+    use_separate_roughness = static_switch(m, "bUseSeparateRoughnessMap", GROUP_CHANNELS, -2100, 400, default=False)
+    use_separate_metallic = static_switch(m, "bUseSeparateMetallicMap", GROUP_CHANNELS, -2100, 420, default=False)
+    use_height_normal = static_switch(m, "bUseHeightToNormal", GROUP_CHANNELS, -2100, 440, default=False)
+    tri_tiling = lib.scalar_param(
+        m, "TriplanarTiling", "Triplanar", 256.0, -2100, 420,
+        desc="World-aligned projection texture size; preserved for existing instances",
+    )
+    triplanar_sw = static_switch(m, "bTriplanar", "Triplanar", -2100, 480)
 
     # ---- Layer A (primary) texture set ----
     albedo = tex_object(m, "Albedo", -2100, 480, "LayerA")
     normal = tex_object(m, "NormalMap", -2100, 640, "LayerA")
     orm = tex_object(m, "ORM", -2100, 800, "LayerA")
     height_a = tex_object(m, "HeightMap", -2100, 960, "LayerA")
+    roughness_a = tex_object(m, "RoughnessMap", -2100, 1000, "LayerA")
+    metallic_a = tex_object(m, "MetallicMap", -2100, 1040, "LayerA")
     layer_a_weight = lib.scalar_param(m, "LayerA_TextureWeight", "LayerA", 1.0, -2100, 1080)
     layer_a_parallax = lib.scalar_param(m, "LayerA_ParallaxScale", "LayerA", 1.0, -2100, 1180)
     layer_a_nrm_str = lib.scalar_param(m, "LayerA_NormalStrength", "LayerA", 1.0, -2100, 1230)
@@ -393,10 +694,68 @@ def build():
     nrm_b = tex_object(m, "LayerB_NormalMap", -2100, 1440, "LayerB")
     orm_b = tex_object(m, "LayerB_ORM", -2100, 1600, "LayerB")
     height_b = tex_object(m, "LayerB_HeightMap", -2100, 1760, "LayerB")
+    roughness_b = tex_object(m, "LayerB_RoughnessMap", -2100, 1800, "LayerB")
+    metallic_b = tex_object(m, "LayerB_MetallicMap", -2100, 1840, "LayerB")
     layer_b_weight = lib.scalar_param(m, "LayerB_TextureWeight", "LayerB", 1.0, -2100, 1880)
     layer_b_parallax = lib.scalar_param(m, "LayerB_ParallaxScale", "LayerB", 1.0, -2100, 1980)
     layer_b_nrm_str = lib.scalar_param(m, "LayerB_NormalStrength", "LayerB", 1.0, -2100, 2030)
     layer_blend = lib.scalar_param(m, "LayerBlend", "Layers", 0.0, -2100, 2100)
+    layer_blend_mode = lib.scalar_param(
+        m, "LayerBlendMode", "Layers", 0.0, -2100, 2140,
+        desc="0=manual LayerBlend 1=height compete 2=height/manual mix",
+    )
+    layer_height_bias = lib.scalar_param(m, "LayerHeightBias", "Layers", 0.0, -2100, 2180)
+    layer_height_sharp = lib.scalar_param(m, "LayerHeightSharpness", "Layers", 4.0, -2100, 2220)
+    layer_blend_soft = lib.scalar_param(m, "LayerBlendSoftness", "Layers", 0.0, -2100, 2260)
+    layer_normal_blend = lib.scalar_param(m, "LayerNormalBlend", "Layers", 1.0, -2100, 2300)
+    layer_rough_blend = lib.scalar_param(m, "LayerRoughnessBlend", "Layers", 1.0, -2100, 2340)
+    layer_manual_mix = lib.scalar_param(
+        m, "LayerManualMix", "Layers", 0.5, -2100, 2380,
+        desc="Manual vs height alpha when LayerBlendMode=2",
+    )
+    layer_base_height_scale = lib.scalar_param(m, "LayerBaseHeightScale", "Layers", 1.0, -2100, 2400)
+    layer_overlay_height_scale = lib.scalar_param(m, "LayerOverlayHeightScale", "Layers", 1.0, -2100, 2420)
+    layer_height_invert = lib.scalar_param(m, "LayerHeightInvert", "Layers", 0.0, -2100, 2440)
+    layer_alpha_bias = lib.scalar_param(m, "LayerAlphaBias", "Layers", 0.0, -2100, 2460)
+    layer_alpha_contrast = lib.scalar_param(m, "LayerAlphaContrast", "Layers", 1.0, -2100, 2480)
+    layer_color_blend = lib.scalar_param(m, "LayerColorBlend", "Layers", 1.0, -2100, 2500)
+    layer_ao_blend = lib.scalar_param(m, "LayerAOBlend", "Layers", 1.0, -2100, 2520)
+    layer_height_blend = lib.scalar_param(m, "LayerHeightBlend", "Layers", 1.0, -2100, 2540)
+    layer_metallic_blend = lib.scalar_param(m, "LayerMetallicBlend", "Layers", 1.0, -2100, 2560)
+
+    # ---- Layer C (second overlay) texture set ----
+    alb_c = tex_object(m, "LayerC_Albedo", -2100, 2480, "LayerC")
+    nrm_c = tex_object(m, "LayerC_NormalMap", -2100, 2640, "LayerC")
+    orm_c = tex_object(m, "LayerC_ORM", -2100, 2800, "LayerC")
+    height_c = tex_object(m, "LayerC_HeightMap", -2100, 2960, "LayerC")
+    roughness_c = tex_object(m, "LayerC_RoughnessMap", -2100, 3000, "LayerC")
+    metallic_c = tex_object(m, "LayerC_MetallicMap", -2100, 3040, "LayerC")
+    layer_c_weight = lib.scalar_param(m, "LayerC_TextureWeight", "LayerC", 1.0, -2100, 3080)
+    layer_c_parallax = lib.scalar_param(m, "LayerC_ParallaxScale", "LayerC", 1.0, -2100, 3180)
+    layer_c_nrm_str = lib.scalar_param(m, "LayerC_NormalStrength", "LayerC", 1.0, -2100, 3230)
+    layer_c_blend = lib.scalar_param(m, "LayerCBlend", "Layers", 0.0, -2100, 3300)
+    layer_c_blend_mode = lib.scalar_param(
+        m, "LayerCBlendMode", "Layers", 0.0, -2100, 3340,
+        desc="0=manual LayerCBlend 1=height compete 2=height/manual mix",
+    )
+    layer_c_height_bias = lib.scalar_param(m, "LayerCHeightBias", "Layers", 0.0, -2100, 3380)
+    layer_c_height_sharp = lib.scalar_param(m, "LayerCHeightSharpness", "Layers", 4.0, -2100, 3420)
+    layer_c_blend_soft = lib.scalar_param(m, "LayerCBlendSoftness", "Layers", 0.0, -2100, 3460)
+    layer_c_normal_blend = lib.scalar_param(m, "LayerCNormalBlend", "Layers", 1.0, -2100, 3500)
+    layer_c_rough_blend = lib.scalar_param(m, "LayerCRoughnessBlend", "Layers", 1.0, -2100, 3540)
+    layer_c_manual_mix = lib.scalar_param(
+        m, "LayerCManualMix", "Layers", 0.5, -2100, 3580,
+        desc="Manual vs height alpha when LayerCBlendMode=2",
+    )
+    layer_c_base_height_scale = lib.scalar_param(m, "LayerCBaseHeightScale", "Layers", 1.0, -2100, 3600)
+    layer_c_overlay_height_scale = lib.scalar_param(m, "LayerCOverlayHeightScale", "Layers", 1.0, -2100, 3620)
+    layer_c_height_invert = lib.scalar_param(m, "LayerCHeightInvert", "Layers", 0.0, -2100, 3640)
+    layer_c_alpha_bias = lib.scalar_param(m, "LayerCAlphaBias", "Layers", 0.0, -2100, 3660)
+    layer_c_alpha_contrast = lib.scalar_param(m, "LayerCAlphaContrast", "Layers", 1.0, -2100, 3680)
+    layer_c_color_blend = lib.scalar_param(m, "LayerCColorBlend", "Layers", 1.0, -2100, 3700)
+    layer_c_ao_blend = lib.scalar_param(m, "LayerCAOBlend", "Layers", 1.0, -2100, 3720)
+    layer_c_height_blend = lib.scalar_param(m, "LayerCHeightBlend", "Layers", 1.0, -2100, 3740)
+    layer_c_metallic_blend = lib.scalar_param(m, "LayerCMetallicBlend", "Layers", 1.0, -2100, 3760)
 
     # ---- Parallax (shared + per-layer) ----
     parallax_scale = lib.scalar_param(m, "ParallaxScale", "Parallax", 0.04, -2100, 2320)
@@ -411,11 +770,15 @@ def build():
     )
     parallax_height = lib.scalar_param(
         m, "ParallaxHeight", "Parallax", 1.0, -2100, 2580,
-        desc="Height multiplier — MI compat alias for depth scale",
+        desc="Height multiplier â€” MI compat alias for depth scale",
     )
     normal_strength = lib.scalar_param(
         m, "NormalStrength", "Parallax", 1.0, -2100, 2610,
         desc="Global normal map XY amplitude (MF_NormalAdjust)",
+    )
+    height_normal_strength = lib.scalar_param(
+        m, "HeightToNormalStrength", "Parallax", 0.0, -2100, 2625,
+        desc="Converts grayscale height maps to extra normal detail (0=off)",
     )
     normal_power = lib.scalar_param(
         m, "NormalPower", "Parallax", 1.0, -2100, 2640,
@@ -447,17 +810,71 @@ def build():
         m, uv_time, height_b, parallax_scale, layer_b_parallax, parallax_str,
         parallax_steps, parallax_mode, parallax_height, "pomB", 7000,
     )
+    pom_c = parallax_uv_offset(
+        m, uv_time, height_c, parallax_scale, layer_c_parallax, parallax_str,
+        parallax_steps, parallax_mode, parallax_height, "pomC", 7400,
+    )
     uv_a = lerp3(m, uv_time, pom_a, parallax_str, "uv_pomA", -1480, 480)
     uv_b = lerp3(m, uv_time, pom_b, parallax_str, "uv_pomB", -1480, 1280)
+    uv_c = lerp3(m, uv_time, pom_c, parallax_str, "uv_pomC", -1480, 2080)
 
-    alb_a, nrm_a, orm_a = sample_maps_uv(m, uv_a, albedo, normal, orm, tri_tiling, "layA", 480)
-    alb_b_s, nrm_b_s, orm_b_s = sample_maps_uv(m, uv_b, alb_b, nrm_b, orm_b, tri_tiling, "layB", 1280)
+    alb_a, nrm_a, orm_a, hgt_a, rough_a, metal_a = sample_maps_uv(
+        m, uv_a, albedo, normal, orm, height_a, roughness_a, metallic_a,
+        tri_tiling, "layA", 480, triplanar_sw,
+    )
+    alb_b_s, nrm_b_s, orm_b_s, hgt_b, rough_b, metal_b = sample_maps_uv(
+        m, uv_b, alb_b, nrm_b, orm_b, height_b, roughness_b, metallic_b,
+        tri_tiling, "layB", 1280, triplanar_sw,
+    )
+    alb_c_s, nrm_c_s, orm_c_s, hgt_c, rough_c, metal_c = sample_maps_uv(
+        m, uv_c, alb_c, nrm_c, orm_c, height_c, roughness_c, metallic_c,
+        tri_tiling, "layC", 2080, triplanar_sw,
+    )
     nrm_a = adjust_normal_map(m, nrm_a, normal_strength, normal_power, layer_a_nrm_str, "nrmAdjA", 480)
     nrm_b_s = adjust_normal_map(m, nrm_b_s, normal_strength, normal_power, layer_b_nrm_str, "nrmAdjB", 1280)
+    nrm_c_s = adjust_normal_map(m, nrm_c_s, normal_strength, normal_power, layer_c_nrm_str, "nrmAdjC", 2080)
 
-    alb_blend = lerp3(m, alb_a, alb_b_s, layer_blend, "alb_lerp", -680, 520)
-    nrm_blend = lerp3(m, nrm_a, nrm_b_s, layer_blend, "nrm_lerp", -680, 680)
-    orm_blend = lerp3(m, orm_a, orm_b_s, layer_blend, "orm_lerp", -680, 840)
+    blend_alpha_ab = advanced_layer_alpha(
+        m, hgt_a, hgt_b, layer_blend, layer_blend_mode,
+        layer_height_bias, layer_height_sharp, layer_blend_soft, layer_manual_mix,
+        layer_base_height_scale, layer_overlay_height_scale, layer_height_invert,
+        layer_alpha_bias, layer_alpha_contrast,
+        "layAB", -1040, 980,
+    )
+    color_alpha_ab = mul2(m, blend_alpha_ab, layer_color_blend, "layAB_color_alpha", 720, 520)
+    nrm_alpha_ab = mul2(m, blend_alpha_ab, layer_normal_blend, "layAB_n_alpha", 720, 680)
+    ao_alpha_ab = mul2(m, blend_alpha_ab, layer_ao_blend, "layAB_ao_alpha", 720, 840)
+    height_alpha_ab = mul2(m, blend_alpha_ab, layer_height_blend, "layAB_h_alpha", 720, 1000)
+    rough_alpha_ab = mul2(m, blend_alpha_ab, layer_rough_blend, "layAB_r_alpha", 720, 1160)
+    metal_alpha_ab = mul2(m, blend_alpha_ab, layer_metallic_blend, "layAB_m_alpha", 720, 1320)
+
+    alb_ab = lerp3(m, alb_a, alb_b_s, color_alpha_ab, "alb_lerp_ab", -680, 520)
+    nrm_ab = lerp3(m, nrm_a, nrm_b_s, nrm_alpha_ab, "nrm_lerp_ab", -680, 680)
+    orm_ab = lerp3(m, orm_a, orm_b_s, ao_alpha_ab, "orm_lerp_ab", -680, 840)
+    hgt_ab = lerp3(m, hgt_a, hgt_b, height_alpha_ab, "hgt_lerp_ab", -680, 1000)
+    rough_ab = lerp3(m, rough_a, rough_b, rough_alpha_ab, "rough_map_lerp_ab", -680, 1160)
+    metal_ab = lerp3(m, metal_a, metal_b, metal_alpha_ab, "metal_map_lerp_ab", -680, 1320)
+
+    blend_alpha_c = advanced_layer_alpha(
+        m, hgt_ab, hgt_c, layer_c_blend, layer_c_blend_mode,
+        layer_c_height_bias, layer_c_height_sharp, layer_c_blend_soft, layer_c_manual_mix,
+        layer_c_base_height_scale, layer_c_overlay_height_scale, layer_c_height_invert,
+        layer_c_alpha_bias, layer_c_alpha_contrast,
+        "layCBlend", -1040, 1780,
+    )
+    color_alpha_c = mul2(m, blend_alpha_c, layer_c_color_blend, "layC_color_alpha", 720, 1720)
+    nrm_alpha_c = mul2(m, blend_alpha_c, layer_c_normal_blend, "layC_n_alpha", 720, 1880)
+    ao_alpha_c = mul2(m, blend_alpha_c, layer_c_ao_blend, "layC_ao_alpha", 720, 2040)
+    height_alpha_c = mul2(m, blend_alpha_c, layer_c_height_blend, "layC_h_alpha", 720, 2200)
+    rough_alpha_c = mul2(m, blend_alpha_c, layer_c_rough_blend, "layC_r_alpha", 720, 2360)
+    metal_alpha_c = mul2(m, blend_alpha_c, layer_c_metallic_blend, "layC_m_alpha", 720, 2520)
+
+    alb_blend = lerp3(m, alb_ab, alb_c_s, color_alpha_c, "alb_lerp_c", -680, 1720)
+    nrm_blend = lerp3(m, nrm_ab, nrm_c_s, nrm_alpha_c, "nrm_lerp_c", -680, 1880)
+    orm_blend = lerp3(m, orm_ab, orm_c_s, ao_alpha_c, "orm_lerp_c", -680, 2040)
+    hgt_blend = lerp3(m, hgt_ab, hgt_c, height_alpha_c, "hgt_lerp_c", -680, 2200)
+    rough_blend = lerp3(m, rough_ab, rough_c, rough_alpha_c, "rough_map_lerp_c", -680, 2360)
+    metal_blend = lerp3(m, metal_ab, metal_c, metal_alpha_c, "metal_map_lerp_c", -680, 2520)
 
     alb = alb_blend
     nrm_s = nrm_blend
@@ -470,7 +887,11 @@ def build():
     tex_b_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, -360, 240)
     wire("tbwA", tex_weight, tex_b_w, "A")
     wire("tbwB", layer_b_weight, tex_b_w, "B")
-    tex_eff = lerp3(m, tex_a_w, tex_b_w, layer_blend, "tex_eff", -200, 180)
+    tex_c_w = lib.create_expression(m, unreal.MaterialExpressionMultiply, -360, 360)
+    wire("tcwA", tex_weight, tex_c_w, "A")
+    wire("tcwB", layer_c_weight, tex_c_w, "B")
+    tex_ab_w = lerp3(m, tex_a_w, tex_b_w, blend_alpha_ab, "tex_eff_ab", -200, 180)
+    tex_eff = lerp3(m, tex_ab_w, tex_c_w, blend_alpha_c, "tex_eff_c", -40, 180)
 
     # hybrid base color / roughness / normal / metallic
     color = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, -40, 120)
@@ -478,15 +899,79 @@ def build():
     wire("color_B", alb, color, "B")
     wire("color_alpha", tex_eff, color, "Alpha")
 
+    # ---- global palette ramp (MF_ColorRamp3) ----
+    alb_lum = lib.create_expression(m, unreal.MaterialExpressionDotProduct, -40, 280)
+    wire("pal_lumA", alb, alb_lum, "A")
+    lum_w = const3(m, -200, 360, 0.299, 0.587, 0.114)
+    wire("pal_lumB", lum_w, alb_lum, "B")
+    pal_driver = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 120, 280)
+    wire("pal_drv0", const1(m, -40, 380, 0.0), pal_driver, "A")
+    wire("pal_drv1", alb_lum, pal_driver, "B")
+    drv_is1 = lib.create_expression(m, unreal.MaterialExpressionSubtract, 120, 380)
+    wire("pal_d1A", palette_ramp_driver, drv_is1, "A")
+    wire("pal_d1B", const1(m, -40, 460, 1.0), drv_is1, "B")
+    drv1_abs = lib.create_expression(m, unreal.MaterialExpressionAbs, 280, 380)
+    wire("pal_d1abs", drv_is1, drv1_abs, "Input")
+    drv1_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 440, 380)
+    wire("pal_d1inv", drv1_abs, drv1_inv, "Input")
+    wire("pal_drv_alpha1", drv1_inv, pal_driver, "Alpha")
+    pal_driver2 = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 280, 480)
+    wire("pal_drv2A", pal_driver, pal_driver2, "A")
+    h_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, 120, 520)
+    h_r.set_editor_property("r", True)
+    h_r.set_editor_property("g", False)
+    h_r.set_editor_property("b", False)
+    h_r.set_editor_property("a", False)
+    wire("pal_ht", hgt_blend, h_r, "")
+    wire("pal_drv2B", h_r, pal_driver2, "B")
+    drv_is2 = lib.create_expression(m, unreal.MaterialExpressionSubtract, 280, 600)
+    wire("pal_d2A", palette_ramp_driver, drv_is2, "A")
+    two_c = const1(m, 120, 680, 2.0)
+    wire("pal_d2B", two_c, drv_is2, "B")
+    drv2_abs = lib.create_expression(m, unreal.MaterialExpressionAbs, 440, 600)
+    wire("pal_d2abs", drv_is2, drv2_abs, "Input")
+    drv2_inv = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 600, 600)
+    wire("pal_d2inv", drv2_abs, drv2_inv, "Input")
+    wire("pal_drv_alpha2", drv2_inv, pal_driver2, "Alpha")
+    pal_mask = lib.create_expression(m, unreal.MaterialExpressionSaturate, 440, 480)
+    wire("pal_mask", pal_driver2, pal_mask, "Input")
+    pal_pos = const1(m, 280, 720, 0.5)
+    pal_con = const1(m, 280, 800, 0.0)
+    pal_ramp = ramp3_call(
+        m, palette_ramp_low, palette_ramp_mid, palette_ramp_high,
+        pal_pos, pal_mask, pal_con, "pal", 600, 400,
+    )
+    if pal_ramp:
+        pal_blend = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 800, 120)
+        wire("pal_blA", color, pal_blend, "A")
+        wire("pal_blB", pal_ramp, pal_blend, "B")
+        wire("pal_bl_alpha", palette_ramp_str, pal_blend, "Alpha")
+        color = pal_blend
+
     org = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -200, 800)
     org.set_editor_property("r", False)
     org.set_editor_property("g", True)
     org.set_editor_property("b", False)
     org.set_editor_property("a", False)
     lib.connect_unary(orm_s, org)
+    rough_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -200, 880)
+    rough_r.set_editor_property("r", True)
+    rough_r.set_editor_property("g", False)
+    rough_r.set_editor_property("b", False)
+    rough_r.set_editor_property("a", False)
+    lib.connect_unary(rough_blend, rough_r)
+    WIRES["rough_src_sw"] = lib.connect_static_switch(use_separate_roughness, rough_r, org)
+    rough_scaled = lib.create_expression(m, unreal.MaterialExpressionMultiply, 20, 760)
+    wire("rough_scale_A", use_separate_roughness, rough_scaled, "A")
+    wire("rough_scale_B", roughness_scale, rough_scaled, "B")
+    rough_biased = lib.create_expression(m, unreal.MaterialExpressionAdd, 180, 760)
+    wire("rough_bias_A", rough_scaled, rough_biased, "A")
+    wire("rough_bias_B", roughness_bias, rough_biased, "B")
+    rough_mapped = lib.create_expression(m, unreal.MaterialExpressionSaturate, 340, 760)
+    wire("rough_map_sat", rough_biased, rough_mapped, "Input")
     rough = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 20, 800)
     wire("rough_A", roughness_s, rough, "A")
-    wire("rough_B", org, rough, "B")
+    wire("rough_B", rough_mapped, rough, "B")
     wire("rough_alpha", tex_eff, rough, "Alpha")
 
     orm_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -200, 960)
@@ -495,16 +980,38 @@ def build():
     orm_r.set_editor_property("b", False)
     orm_r.set_editor_property("a", False)
     lib.connect_unary(orm_s, orm_r)
+    metal_r = lib.create_expression(m, unreal.MaterialExpressionComponentMask, -200, 1040)
+    metal_r.set_editor_property("r", True)
+    metal_r.set_editor_property("g", False)
+    metal_r.set_editor_property("b", False)
+    metal_r.set_editor_property("a", False)
+    lib.connect_unary(metal_blend, metal_r)
+    WIRES["metal_src_sw"] = lib.connect_static_switch(use_separate_metallic, metal_r, orm_r)
+    metal_scaled = lib.create_expression(m, unreal.MaterialExpressionMultiply, 20, 1080)
+    wire("metal_scale_A", use_separate_metallic, metal_scaled, "A")
+    wire("metal_scale_B", metallic_scale, metal_scaled, "B")
+    metal_biased = lib.create_expression(m, unreal.MaterialExpressionAdd, 180, 1080)
+    wire("metal_bias_A", metal_scaled, metal_biased, "A")
+    wire("metal_bias_B", metallic_bias, metal_biased, "B")
+    metal_mapped = lib.create_expression(m, unreal.MaterialExpressionSaturate, 340, 1080)
+    wire("metal_map_sat", metal_biased, metal_mapped, "Input")
     metal = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 20, 960)
     wire("metal_A", metallic_s, metal, "A")
-    wire("metal_B", orm_r, metal, "B")
+    wire("metal_B", metal_mapped, metal, "B")
     wire("metal_alpha", tex_eff, metal, "Alpha")
 
     flat_n = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, -200, 640)
     flat_n.set_editor_property("constant", unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    height_n = height_to_normal(m, hgt_blend, height_normal_strength, "h2n", -360, 520)
+    nrm_height_add = lib.create_expression(m, unreal.MaterialExpressionAdd, -180, 520)
+    wire("nrm_h_base", nrm_s, nrm_height_add, "A")
+    wire("nrm_h_add", height_n, nrm_height_add, "B")
+    nrm_with_height = lib.create_expression(m, unreal.MaterialExpressionNormalize, -20, 520)
+    WIRES["nrm_h_norm"] = lib.connect_unary(nrm_height_add, nrm_with_height)
+    WIRES["nrm_h_sw"] = lib.connect_static_switch(use_height_normal, nrm_with_height, nrm_s)
     nrm = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 20, 640)
     wire("nrm_A", flat_n, nrm, "A")
-    wire("nrm_B", nrm_s, nrm, "B")
+    wire("nrm_B", use_height_normal, nrm, "B")
     wire("nrm_alpha", tex_eff, nrm, "Alpha")
 
     # temporal color boil (subtle impressionist shimmer on final tint path)
@@ -519,7 +1026,7 @@ def build():
     # ---- Nikki dreamy layer (pastel lift, rim, sparkle, bloom) ----
     rim_color = lib.vector_param(
         m, "RimColor", "Nikki", (0.70, 0.85, 1.00, 1.0), -2100, 1040,
-        desc="Fresnel rim tint — anime edge glow",
+        desc="Fresnel rim tint â€” anime edge glow",
     )
     rim_power = lib.scalar_param(m, "RimPower", "Nikki", 3.0, -2100, 1140, desc="Rim falloff exponent")
     rim_int = lib.scalar_param(m, "RimIntensity", "Nikki", 0.0, -2100, 1240, desc="Rim brightness (0=off)")
@@ -648,12 +1155,12 @@ def build():
     const_scale = lib.scalar_param(m, "ConstellationScale", "Celestial", 1.8, -2100, 3460)
     const_phase = lib.scalar_param(
         m, "ConstellationPhase", "Celestial", 0.0, -2100, 3560,
-        desc="Legacy — replaced by MF_SpaceParallax (no graph wiring)",
+        desc="Legacy â€” replaced by MF_SpaceParallax (no graph wiring)",
     )
     star_int = lib.scalar_param(m, "CelestialStarIntensity", "Celestial", 1.0, -2100, 3660)
     star_twinkle = lib.scalar_param(
         m, "CelestialTwinkle", "Celestial", 0.0, -2100, 3760,
-        desc="Legacy — replaced by MF_SpaceParallax (no graph wiring)",
+        desc="Legacy â€” replaced by MF_SpaceParallax (no graph wiring)",
     )
     nebula_str = lib.scalar_param(
         m, "CelestialNebulaStrength", "Celestial", 0.65, -2100, 3860,
@@ -670,7 +1177,7 @@ def build():
     )
     galaxy_arms = lib.scalar_param(
         m, "CelestialGalaxyArms", "Celestial", 3.0, -2100, 4260,
-        desc="Legacy — replaced by MF_SpaceParallax (no graph wiring)",
+        desc="Legacy â€” replaced by MF_SpaceParallax (no graph wiring)",
     )
     star_map = tex_object(m, "StarMap", -2100, 4310, "Celestial")
     _wire_catalog_texture(star_map, "StarMap")
@@ -686,7 +1193,7 @@ def build():
     gold_emis = lib.vector_param(m, "GoldEmissive", "Gilding", (0.35, 0.25, 0.05, 1.0), -2100, 4680)
     curve_sens = lib.scalar_param(m, "CurvatureSensitivity", "Gilding", 2.5, -2100, 4780)
 
-    # ---- Dreamy shadows (N·L tint in shadow) ----
+    # ---- Dreamy shadows (NÂ·L tint in shadow) ----
     shadow_tint = lib.vector_param(m, "ShadowDreamTint", "ShadowDream", (0.48, 0.42, 0.62, 1.0), -2100, 4900)
     shadow_str = lib.scalar_param(m, "ShadowDreamStrength", "ShadowDream", 0.0, -2100, 5000)
     shadow_soft = lib.scalar_param(m, "ShadowSoftness", "ShadowDream", 0.5, -2100, 5100)
@@ -719,52 +1226,52 @@ def build():
     wire("nikki_base_alpha", pastel, color_nikki, "Alpha")
 
     # Nikki grading (environment-safe): optional pastel grading before emissive adds.
-    # Defaults are neutral (all 0).
-    lum = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 60, 200)
-    wire("dream_lumA", color_nikki, lum, "A")
-    lum_w = const3(m, -40, 280, 0.299, 0.587, 0.114)
-    wire("dream_lumB", lum_w, lum, "B")
-    gray = lib.create_expression(m, unreal.MaterialExpressionMultiply, 220, 200)
-    wire("dream_grayA", lum, gray, "A")
-    wire("dream_grayB", const1(m, 60, 280, 1.0), gray, "B")
-    sat_lerp = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 400, 200)
-    wire("dream_satA", color_nikki, sat_lerp, "A")
-    wire("dream_satB", gray, sat_lerp, "B")
-    wire("dream_satAlpha", dream_sat, sat_lerp, "Alpha")
-    mid = const1(m, 400, 320, 0.5)
-    sub = lib.create_expression(m, unreal.MaterialExpressionSubtract, 560, 200)
-    wire("dream_con_subA", sat_lerp, sub, "A")
-    wire("dream_con_subB", mid, sub, "B")
-    c_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 200)
-    wire("dream_con_mulA", sub, c_mul, "A")
-    con_scale = lib.create_expression(m, unreal.MaterialExpressionAdd, 560, 320)
-    wire("dream_con_scaleA", const1(m, 560, 360, 1.0), con_scale, "A")
-    wire("dream_con_scaleB", dream_contrast, con_scale, "B")
-    wire("dream_con_mulB", con_scale, c_mul, "B")
-    con_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 880, 200)
-    wire("dream_con_addA", c_mul, con_add, "A")
-    wire("dream_con_addB", mid, con_add, "B")
-    # shadow lift / highlight soft from luminance
-    sh_mask = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 560, 420)
-    wire("dream_sh_inv", lum, sh_mask, "Input")
-    sh = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 420)
-    wire("dream_shA", sh_mask, sh, "A")
-    wire("dream_shB", dream_shadow_lift, sh, "B")
-    hi = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 500)
-    wire("dream_hiA", lum, hi, "A")
-    wire("dream_hiB", dream_high_soft, hi, "B")
-    grade_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 1040, 260)
-    wire("dream_gradeA", sh, grade_add, "A")
-    wire("dream_gradeB", hi, grade_add, "B")
-    dream_grade = lib.create_expression(m, unreal.MaterialExpressionAdd, 1200, 200)
-    wire("dream_gradeAddA", con_add, dream_grade, "A")
-    wire("dream_gradeAddB", grade_add, dream_grade, "B")
-    color_nikki = dream_grade
+    # Defaults are neutral (all 0). Skipped when MF_Nikki* chain handles grading.
+    if not use_nikki_mf:
+        lum = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 60, 200)
+        wire("dream_lumA", color_nikki, lum, "A")
+        lum_w = const3(m, -40, 280, 0.299, 0.587, 0.114)
+        wire("dream_lumB", lum_w, lum, "B")
+        gray = lib.create_expression(m, unreal.MaterialExpressionMultiply, 220, 200)
+        wire("dream_grayA", lum, gray, "A")
+        wire("dream_grayB", const1(m, 60, 280, 1.0), gray, "B")
+        sat_lerp = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 400, 200)
+        wire("dream_satA", color_nikki, sat_lerp, "A")
+        wire("dream_satB", gray, sat_lerp, "B")
+        wire("dream_satAlpha", dream_sat, sat_lerp, "Alpha")
+        mid = const1(m, 400, 320, 0.5)
+        sub = lib.create_expression(m, unreal.MaterialExpressionSubtract, 560, 200)
+        wire("dream_con_subA", sat_lerp, sub, "A")
+        wire("dream_con_subB", mid, sub, "B")
+        c_mul = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 200)
+        wire("dream_con_mulA", sub, c_mul, "A")
+        con_scale = lib.create_expression(m, unreal.MaterialExpressionAdd, 560, 320)
+        wire("dream_con_scaleA", const1(m, 560, 360, 1.0), con_scale, "A")
+        wire("dream_con_scaleB", dream_contrast, con_scale, "B")
+        wire("dream_con_mulB", con_scale, c_mul, "B")
+        con_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 880, 200)
+        wire("dream_con_addA", c_mul, con_add, "A")
+        wire("dream_con_addB", mid, con_add, "B")
+        sh_mask = lib.create_expression(m, unreal.MaterialExpressionOneMinus, 560, 420)
+        wire("dream_sh_inv", lum, sh_mask, "Input")
+        sh = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 420)
+        wire("dream_shA", sh_mask, sh, "A")
+        wire("dream_shB", dream_shadow_lift, sh, "B")
+        hi = lib.create_expression(m, unreal.MaterialExpressionMultiply, 720, 500)
+        wire("dream_hiA", lum, hi, "A")
+        wire("dream_hiB", dream_high_soft, hi, "B")
+        grade_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 1040, 260)
+        wire("dream_gradeA", sh, grade_add, "A")
+        wire("dream_gradeB", hi, grade_add, "B")
+        dream_grade = lib.create_expression(m, unreal.MaterialExpressionAdd, 1200, 200)
+        wire("dream_gradeAddA", con_add, dream_grade, "A")
+        wire("dream_gradeAddB", grade_add, dream_grade, "B")
+        color_nikki = dream_grade
 
     # ---- celestial: MF_SpaceParallax ----
     space_px = mf_call(m, MF_SPACE_PARALLAX, 400, 300)
     if not space_px:
-        unreal.log_error("[Universal] MF_SpaceParallax missing — celestial stack skipped")
+        unreal.log_error("[Universal] MF_SpaceParallax missing â€” celestial stack skipped")
         celestial = color_nikki
     else:
         wire("spx_galaxy_tint", const_low, space_px, "GalaxyTint")
@@ -821,7 +1328,7 @@ def build():
     wire("gold_eA", gold_mask, gold_emis_m, "A")
     wire("gold_eB", gold_emis, gold_emis_m, "B")
 
-    # dreamy shadow tint (N·L proxy)
+    # dreamy shadow tint (NÂ·L proxy)
     light_dir = lib.create_expression(m, unreal.MaterialExpressionConstant3Vector, 220, 760)
     light_dir.set_editor_property("constant", unreal.LinearColor(0.35, 0.55, 0.85, 1.0))
     ndotl = lib.create_expression(m, unreal.MaterialExpressionDotProduct, 400, 760)
@@ -878,7 +1385,7 @@ def build():
     wire("fl_eA", flower_w, flower_e, "A")
     wire("fl_eB", flower_color, flower_e, "B")
 
-    # fresnel + Nikki stack (rim/glow/sparkle grading) — defaults are neutral/off.
+    # fresnel + Nikki stack (rim/glow/sparkle grading) â€” defaults are neutral/off.
     fres = lib.create_expression(m, unreal.MaterialExpressionFresnel, 220, 1100)
     wire("fresnel_exp", rim_power, fres, "ExponentIn")
     fres_sat = lib.create_expression(m, unreal.MaterialExpressionSaturate, 60, 1100)
@@ -949,14 +1456,10 @@ def build():
     uv_adv = lib.create_expression(m, unreal.MaterialExpressionAdd, 400, 1420)
     wire("spark_uv_advA", uv_scaled, uv_adv, "A")
     wire("spark_uv_advB", drift_uv, uv_adv, "B")
-    # gate advanced UV
-    spark_uv = lib.create_expression(m, unreal.MaterialExpressionStaticSwitchParameter, 580, 1420)
-    spark_uv.set_editor_property("parameter_name", "bSparkleAdvanced")
-    spark_uv.set_editor_property("group", "Nikki")
-    spark_uv.set_editor_property("default_value", False)
-    WIRES["spark_uv_sw"] = lib.connect_static_switch(spark_uv, uv_adv, uv_scaled)
+    # gate advanced UV (shared bSparkleAdvanced switch â€” no duplicate node)
+    WIRES["spark_uv_sw"] = lib.connect_static_switch(sparkle_adv, uv_adv, uv_scaled)
 
-    wire("spark_mask_uv", spark_uv, spark_mask, "UVs", "Coordinates")
+    wire("spark_mask_uv", sparkle_adv, spark_mask, "UVs", "Coordinates")
     spark_base = spark_mask
     spark_cut = lib.create_expression(m, unreal.MaterialExpressionSubtract, 740, 1420)
     wire("spark_cutA", spark_base, spark_cut, "A")
@@ -1051,18 +1554,18 @@ def build():
     sheen_mask_n = lib.create_expression(m, unreal.MaterialExpressionMultiply, 580, 1720)
     wire("sheen_mask_nA", sheen_mask, sheen_mask_n, "A")
     wire("sheen_mask_nB", ndv_sat, sheen_mask_n, "B")
-    sheen_mask_gated = lib.create_expression(m, unreal.MaterialExpressionStaticSwitchParameter, 740, 1680)
-    sheen_mask_gated.set_editor_property("parameter_name", "bSheenUsesNormal")
-    sheen_mask_gated.set_editor_property("group", "Nikki")
-    sheen_mask_gated.set_editor_property("default_value", False)
-    WIRES["sheen_mask_sw"] = lib.connect_static_switch(sheen_mask_gated, sheen_mask_n, sheen_mask)
+    WIRES["sheen_mask_sw"] = lib.connect_static_switch(sheen_use_normal, sheen_mask_n, sheen_mask)
 
     sheen_m = lib.create_expression(m, unreal.MaterialExpressionMultiply, 920, 1520)
-    wire("sheen_mA", sheen_mask_gated, sheen_m, "A")
+    wire("sheen_mA", sheen_use_normal, sheen_m, "A")
     wire("sheen_mB", sheen, sheen_m, "B")
     sheen_e = lib.create_expression(m, unreal.MaterialExpressionMultiply, 580, 1520)
     wire("sheen_eA", sheen_m, sheen_e, "A")
     wire("sheen_eB", sheen_tint, sheen_e, "B")
+
+    if use_nikki_mf:
+        nikki_emis_zero = const3(m, 920, 1100, 0, 0, 0)
+        rim_e = irid_e = spark_e = glow_e = inner_e = sheen_e = nikki_emis_zero
 
     # fairy dust procedural motifs on world UV
     fairy_uv = lib.create_expression(m, unreal.MaterialExpressionMultiply, 220, 1680)
@@ -1143,7 +1646,7 @@ def build():
     motif = lib.create_expression(m, unreal.MaterialExpressionAdd, 1540, 1820)
     wire("motif_cA", motif_b, motif, "A")
     wire("motif_cB", m_m, motif, "B")
-    # optional glyph texture overlay (mesh UV — not world LWC)
+    # optional glyph texture overlay (mesh UV â€” not world LWC)
     wire("glyph_uv", uv, fairy_glyph, "UVs", "Coordinates")
     motif_tex = lib.create_expression(m, unreal.MaterialExpressionAdd, 1700, 1820)
     wire("motif_texA", motif, motif_tex, "A")
@@ -1199,6 +1702,7 @@ def build():
     macro_str = lib.scalar_param(m, "MacroVariationStrength", "MacroDetail", 0.0, 3600, 120)
     macro_scale = lib.scalar_param(m, "MacroScale", "MacroDetail", 0.0008, 3600, 200)
     det_tex = tex_object(m, "DetailNormal", 3600, 280, "MacroDetail")
+    _wire_catalog_texture(det_tex, "DetailNormal")
     det_tiling = lib.scalar_param(m, "DetailTiling", "MacroDetail", 8.0, 3600, 440)
     det_str = lib.scalar_param(m, "DetailStrength", "MacroDetail", 0.0, 3600, 520)
     # macro: tiled UV noise -> subtle albedo brightness/tint variation (kills tiling)
@@ -1241,7 +1745,7 @@ def build():
     # ---- Magical-girl transform (henshin wipe + motif mask; defaults off) ----
     mtransform = lib.scalar_param(
         m, "MagicalTransform", "Magical", 0.0, 4800, 120,
-        desc="0→1 henshin driver (sync MPC_Magical)",
+        desc="0â†’1 henshin driver (sync MPC_Magical)",
     )
     motif_mask = tex_object(m, "MotifMask", 4800, 200, "Magical")  # T_Magic_Heart/Bow/Star
     motif_scale = lib.scalar_param(m, "MotifScale", "Magical", 6.0, 4800, 360)
@@ -1508,10 +2012,10 @@ def build():
             tod_vec_final = use_uds_tod
             unreal.log("[Universal] UDS TimeOfDay MPC sync wired (UseUDSTimeOfDay static switch)")
         else:
-            unreal.log_warning("[Universal] Day_to_Night_Color missing — UDS sync skipped")
+            unreal.log_warning("[Universal] Day_to_Night_Color missing â€” UDS sync skipped")
     else:
         unreal.log_warning(
-            "[Universal] UltraDynamicWeather_Parameters not found — manual TimeOfDayWarmth only"
+            "[Universal] UltraDynamicWeather_Parameters not found â€” manual TimeOfDayWarmth only"
         )
 
     tod_col = lib.create_expression(m, unreal.MaterialExpressionMultiply, 7480, 2000)
@@ -1684,12 +2188,56 @@ def build():
     wire("dith_bl_alpha", dither_str, dith_blend, "Alpha")
     final_color = dith_blend
 
-    # --- Madoka + Itto: standalone MF lanes (Phase 1 rebuild, post-incident) ---
-    # Single MaterialFunctionCall per function — see MATERIAL_SYSTEM_REVIEW.md /
-    # [[material-system-architecture-review]]: keeps Universal's own node count
-    # flat regardless of internal MF complexity, unlike the reverted inline attempt.
-    madoka_blend = lib.scalar_param(m, "MadokaBlendAmount", "Madoka", 0.0, 12200, 900)
-    madoka_call = mf_call(m, "/Game/EnvSandbox/Materials/Functions/MF_Madoka", 12200, 1000)
+    # --- Nikki MF chain (landscape parity) when editor MFs exist ---
+    if use_nikki_mf:
+        final_color = apply_nikki_mf_chain(
+            m,
+            final_color,
+            nrm,
+            uv_time,
+            pastel=pastel,
+            dream_tint=dream_tint,
+            dream_sat=dream_sat,
+            dream_contrast=dream_contrast,
+            dream_shadow_lift=dream_shadow_lift,
+            rim_color=rim_color,
+            rim_int=rim_int,
+            rim_width=rim_width,
+            glow_int=glow_int,
+            bloom=bloom,
+            spark_mask=spark_mask,
+            spark_int=spark_int,
+            spark_thresh=spark_thresh,
+            spark_color=spark_color,
+            irid=irid,
+            irid_tint=irid_tint,
+            irid_pow=irid_pow,
+            sheen=sheen,
+            sheen_tint=sheen_tint,
+        )
+
+    # --- Madoka + Itto: shared MF lanes (v2 â€” radial rings + ink) ---
+    madoka_blend = lib.scalar_param(m, "MadokaBlendAmount", GROUP_MADOKA, 0.0, 12200, 800)
+    witch_wallpaper = lib.scalar_param(m, "WitchBarrierWallpaperScale", GROUP_MADOKA, 4.0, 12200, 820)
+    madoka_glow = lib.scalar_param(m, "MadokaGlowAmount", GROUP_MADOKA, 0.0, 12200, 840)
+    madoka_vein = lib.scalar_param(m, "MadokaVeinEmissive", GROUP_MADOKA, 0.0, 12200, 860)
+    madoka_cute = lib.scalar_param(m, "MadokaCuteBias", GROUP_MADOKA, 0.5, 12200, 880)
+    madoka_emis_bright = lib.scalar_param(m, "MadokaEmissiveBrightness", GROUP_MADOKA, 0.0, 12200, 900)
+    madoka_radial = lib.scalar_param(m, "MadokaRadialBands", GROUP_MADOKA, 3.0, 12200, 920)
+    madoka_ramp_low = lib.vector_param(m, "MadokaRampLow", GROUP_MADOKA, (0.55, 0.12, 0.18, 1.0), 12200, 940)
+    madoka_ramp_mid = lib.vector_param(m, "MadokaRampMid", GROUP_MADOKA, (0.72, 0.35, 0.55, 1.0), 12200, 960)
+    madoka_ramp_high = lib.vector_param(m, "MadokaRampHigh", GROUP_MADOKA, (0.92, 0.55, 0.88, 1.0), 12200, 980)
+
+    itto_blend = lib.scalar_param(m, "IttoBlendAmount", GROUP_ITTO, 0.0, 12200, 1100)
+    itto_pattern = lib.scalar_param(m, "IttoPatternScale", GROUP_ITTO, 3.0, 12200, 1120)
+    itto_crack = lib.scalar_param(m, "IttoCrackDepth", GROUP_ITTO, 0.0, 12200, 1140)
+    itto_wear = lib.scalar_param(m, "IttoWearAmount", GROUP_ITTO, 0.0, 12200, 1160)
+    itto_breakup = lib.scalar_param(m, "IttoBreakupAmount", GROUP_ITTO, 0.0, 12200, 1180)
+    itto_ink = lib.scalar_param(m, "IttoInkStrength", GROUP_ITTO, 0.0, 12200, 1200)
+    itto_ramp_low = lib.vector_param(m, "IttoRampLow", GROUP_ITTO, (0.12, 0.10, 0.08, 1.0), 12200, 1220)
+    itto_ramp_high = lib.vector_param(m, "IttoRampHigh", GROUP_ITTO, (0.45, 0.38, 0.32, 1.0), 12200, 1240)
+
+    madoka_call = mf_call(m, MF_MADOKA, 12200, 1000)
     if madoka_call:
         madoka_color_blend = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 12500, 1000)
         lib.connect(final_color, "", madoka_color_blend, "A")
@@ -1697,21 +2245,32 @@ def build():
         wire("madoka_col_alpha", madoka_blend, madoka_color_blend, "Alpha")
         final_color = madoka_color_blend
 
-        madoka_emis_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 12700, 1100)
+        madoka_emis_scaled = lib.create_expression(m, unreal.MaterialExpressionMultiply, 12680, 1100)
+        lib.connect(madoka_call, "Emissive", madoka_emis_scaled, "A")
+        lib.connect(madoka_blend, "", madoka_emis_scaled, "B")
+        madoka_emis_add = lib.create_expression(m, unreal.MaterialExpressionAdd, 12880, 1100)
         lib.connect(emissive, "", madoka_emis_add, "A")
-        lib.connect(madoka_call, "Emissive", madoka_emis_add, "B")
+        lib.connect(madoka_emis_scaled, "", madoka_emis_add, "B")
         emissive = madoka_emis_add
     else:
-        unreal.log_warning("[Universal] MF_Madoka missing — Madoka lane skipped")
+        unreal.log_warning("[Universal] MF_Madoka missing â€” Madoka lane skipped")
 
-    itto_call = mf_call(m, "/Game/EnvSandbox/Materials/Functions/MF_Itto", 12200, 1300)
+    itto_call = mf_call(m, MF_ITTO, 12200, 1300)
     if itto_call:
-        rough_itto = lib.create_expression(m, unreal.MaterialExpressionAdd, 12500, 1300)
+        wire("itto_base", final_color, itto_call, "BaseColor")
+        wire("itto_nrm", nrm, itto_call, "Normal")
+        itto_color_blend = lib.create_expression(m, unreal.MaterialExpressionLinearInterpolate, 12500, 1300)
+        lib.connect(final_color, "", itto_color_blend, "A")
+        lib.connect(itto_call, "Color", itto_color_blend, "B")
+        wire("itto_col_alpha", itto_blend, itto_color_blend, "Alpha")
+        final_color = itto_color_blend
+
+        rough_itto = lib.create_expression(m, unreal.MaterialExpressionAdd, 12500, 1400)
         lib.connect(rough_gold, "", rough_itto, "A")
         lib.connect(itto_call, "RoughnessAdd", rough_itto, "B")
         rough_gold = rough_itto
     else:
-        unreal.log_warning("[Universal] MF_Itto missing — Itto lane skipped")
+        unreal.log_warning("[Universal] MF_Itto missing â€” Itto lane skipped")
 
     # character + elemental emissive additions
     char_emis_a = lib.create_expression(m, unreal.MaterialExpressionAdd, 8280, 640)
@@ -1743,8 +2302,10 @@ def build():
     unreal.MaterialEditingLibrary.recompile_material(m)
     lib.save_package(m)
 
+    import importlib
     import portfolio_texture_catalog as catalog
 
+    catalog = importlib.reload(catalog)
     wired_tex = catalog.apply_master_defaults(m, path, force=True)
     violations = catalog.scan_master_texture_violations(m)
     unreal.log(f"[Universal] compositing defaults wired: {len(wired_tex)} -> {list(wired_tex.keys())}")
