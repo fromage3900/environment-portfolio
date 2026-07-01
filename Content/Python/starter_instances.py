@@ -54,7 +54,6 @@ STARTER_INSTANCES: list[dict] = [
             "DetailStrength": 0.6,
             "DetailTiling": 12.0,
         },
-        "switches": {"bTriplanar": True},
         "key_params": "ParallaxMode, ParallaxHeight, NormalStrength (Parallax + Triplanar)",
     },
     {

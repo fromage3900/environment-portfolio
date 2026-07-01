@@ -69,6 +69,7 @@ M_Master_Toon_Universal remains the single canonical universal master for portfo
 Focused fixes:
 - Layer channels now blend sequentially A to B to C, gated by layer activation, so enabling an overlay no longer divides/dims Layer A when the overlay alpha is 0.
 - Parallax UVs now apply ParallaxStrength once inside parallax_uv_offset; ParallaxStrength=0 is an identity UV path.
+- Triplanar is controlled by TriplanarBlend (0=UV, 1=world-aligned) so all sampled channels blend consistently without a shared static-switch output.
 - Normal flow still uses MF_NormalAdjust for global/per-layer strength and feeds the final Substrate Toon normal pin from the blended normal accumulator.
 - Nikki behavior is preserved through the inline Nikki stack when the optional MF_Nikki* chain is unavailable.
 

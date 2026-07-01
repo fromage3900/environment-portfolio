@@ -696,11 +696,7 @@ def build():
     )
     triplanar_blend = lib.scalar_param(
         m, "TriplanarBlend", "Triplanar", 0.0, -2100, 460,
-        desc="0=UV projection, 1=world-aligned triplanar projection; bTriplanar forces 1 for legacy instances",
-    )
-    triplanar_force = static_switch(m, "bTriplanar", "Triplanar", -2100, 500, default=False)
-    WIRES["triplanar_force_alpha"] = lib.connect_static_switch(
-        triplanar_force, const1(m, -1940, 500, 1.0), triplanar_blend
+        desc="0=UV projection, 1=world-aligned triplanar projection",
     )
     # ---- Layer A (primary) texture set ----
     albedo = tex_object(m, "Albedo", -2100, 480, "LayerA")
@@ -851,15 +847,15 @@ def build():
 
     alb_a, nrm_a, orm_a, hgt_a, rough_a, metal_a = sample_maps_uv(
         m, uv_a, albedo, normal, orm, height_a, roughness_a, metallic_a,
-        tri_tiling, triplanar_force, "layA", 480,
+        tri_tiling, triplanar_blend, "layA", 480,
     )
     alb_b_s, nrm_b_s, orm_b_s, hgt_b, rough_b, metal_b = sample_maps_uv(
         m, uv_b, alb_b, nrm_b, orm_b, height_b, roughness_b, metallic_b,
-        tri_tiling, triplanar_force, "layB", 1280,
+        tri_tiling, triplanar_blend, "layB", 1280,
     )
     alb_c_s, nrm_c_s, orm_c_s, hgt_c, rough_c, metal_c = sample_maps_uv(
         m, uv_c, alb_c, nrm_c, orm_c, height_c, roughness_c, metallic_c,
-        tri_tiling, triplanar_force, "layC", 2080,
+        tri_tiling, triplanar_blend, "layC", 2080,
     )
     nrm_a = adjust_normal_map(m, nrm_a, normal_strength, normal_power, layer_a_nrm_str, "nrmAdjA", 480)
     nrm_b_s = adjust_normal_map(m, nrm_b_s, normal_strength, normal_power, layer_b_nrm_str, "nrmAdjB", 1280)
@@ -2411,5 +2407,4 @@ def build():
 
 if __name__ == "__main__":
     build()
-
 
