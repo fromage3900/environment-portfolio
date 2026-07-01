@@ -1,4 +1,4 @@
-"""EnvSandbox universal PCG portfolio standards — paths, tags, presets, ISM bands."""
+﻿"""EnvSandbox universal PCG portfolio standards â€” paths, tags, presets, ISM bands."""
 from __future__ import annotations
 
 PCG_ROOT = "/Game/EnvSandbox/PCG"
@@ -15,6 +15,12 @@ GRAPH_FOLIAGE = f"{DIR_UNIVERSAL}/PCG_FoliageDensity"
 GRAPH_ROCK = f"{DIR_UNIVERSAL}/PCG_RockScatter"
 GRAPH_WALL = f"{DIR_UNIVERSAL}/PCG_WallDetail"
 GRAPH_EXCLUSION = f"{DIR_SUBGRAPHS}/PCG_ExclusionFalloff"
+GRAPH_MEADOW_BLOOM = f"{DIR_UNIVERSAL}/PCG_MeadowBloom"
+GRAPH_BLOSSOM_PATH = f"{DIR_UNIVERSAL}/PCG_BlossomPath"
+GRAPH_LANTERN_GROVE = f"{DIR_UNIVERSAL}/PCG_LanternGrove"
+GRAPH_GARDEN_RUINS = f"{DIR_UNIVERSAL}/PCG_GardenRuins"
+GRAPH_PETAL_DRIFT = f"{DIR_STYLES}/Sakura/PCG_Sakura_PetalDrift"
+GRAPH_MOSS_GROUNDCOVER = f"{DIR_STYLES}/Sakura/PCG_Zen_MossGroundcover"
 GRAPH_GREYBOX_MINIMAL = f"{DIR_GREYBOX}/PCG_Greybox_Minimal"
 GRAPH_GREYBOX_STANDARD = f"{DIR_GREYBOX}/PCG_Greybox_Standard"
 GRAPH_SAKURA_SHOWCASE = f"{DIR_STYLES}/Sakura/PCG_Sakura_Showcase"
@@ -49,7 +55,7 @@ ACTOR_ROCKS = "PCG_Greybox_Rocks"
 ACTOR_EXCLUDE_PREFIX = "PCG_Exclude_"
 ACTOR_SAKURA_VOLUME = "PCG_Sakura_GroundCover"
 
-# Melodia salvage defaults (Tier B — meadow/forest reference).
+# Melodia salvage defaults (Tier B â€” meadow/forest reference).
 DEFAULT_VOXEL_CM = 180.0
 DEFAULT_DENSITY = 0.42
 DEFAULT_EXCLUDE_FALLOFF = 220.0
@@ -57,6 +63,9 @@ SPACING_PRUNE_RADIUS_CM = 85.0
 
 SEED_FOLIAGE = 4242
 SEED_ROCKS = 5150
+SEED_BLOSSOMS = 6161
+SEED_DECOR = 7171
+SEED_PETALS = 8181
 
 GROUND_HALF_EXTENT_UU = 3000.0
 PCG_VOLUME_CENTER = (0.0, 0.0, 28.0)
@@ -66,6 +75,12 @@ GRASS_SCALE_MIN = 0.6
 GRASS_SCALE_MAX = 1.0
 ROCK_SCALE_MIN = 0.4
 ROCK_SCALE_MAX = 1.2
+PETAL_SCALE_MIN = 0.18
+PETAL_SCALE_MAX = 0.55
+FLOWER_SCALE_MIN = 0.35
+FLOWER_SCALE_MAX = 0.85
+DECOR_SCALE_MIN = 0.65
+DECOR_SCALE_MAX = 1.35
 
 ISM_BAND_PORTFOLIO = (250, 1600)
 ISM_BAND_SAKURA = (320, 1800)
@@ -88,6 +103,18 @@ SCATTER_MESHES: dict[str, list[str]] = {
     ],
     "petal": ["/Engine/BasicShapes/Plane.Plane"],
     "flower": ["/Engine/BasicShapes/Cone.Cone"],
+    "moss": [
+        "/Engine/BasicShapes/Plane.Plane",
+        "/Game/Greybox_Kit/SM_Block_Cube_1.SM_Block_Cube_1",
+    ],
+    "lantern": [
+        "/Engine/BasicShapes/Cylinder.Cylinder",
+        "/Engine/BasicShapes/Cube.Cube",
+    ],
+    "ruin": [
+        "/Game/Greybox_Kit/SM_Block_Cube_1.SM_Block_Cube_1",
+        "/Engine/BasicShapes/Cube.Cube",
+    ],
 }
 
 PRESETS: dict[str, dict] = {
@@ -127,6 +154,94 @@ PRESETS: dict[str, dict] = {
     },
 }
 
+# Universal style graphs inspired by soft collectible-world staging: readable paths,
+# layered groundcover, flowers/petals, lantern accents, ruins, and strong exclusion zones.
+STYLE_PRESETS: dict[str, dict] = {
+    "meadow_bloom": {
+        "label": "Meadow Bloom",
+        "graph": GRAPH_MEADOW_BLOOM,
+        "role": "flower",
+        "material": MI_GREYBOX_GRASS,
+        "density": 0.26,
+        "voxel_cm": 190.0,
+        "use_surface_tag": True,
+        "spawn_exclusion": True,
+        "transform_jitter": 20.0,
+        "scale": (FLOWER_SCALE_MIN, FLOWER_SCALE_MAX),
+        "seed": SEED_BLOSSOMS,
+        "notes": "Soft flower/ground accent layer for fantasy meadow and garden scenes.",
+    },
+    "blossom_path": {
+        "label": "Blossom Path",
+        "graph": GRAPH_BLOSSOM_PATH,
+        "role": "petal",
+        "material": MI_SAKURA_PETALS,
+        "density": 0.18,
+        "voxel_cm": 160.0,
+        "use_surface_tag": True,
+        "spawn_exclusion": True,
+        "transform_jitter": 32.0,
+        "scale": (PETAL_SCALE_MIN, PETAL_SCALE_MAX),
+        "seed": SEED_PETALS,
+        "notes": "Readable petal scatter intended for paths, shrine approaches, and reveal shots.",
+    },
+    "lantern_grove": {
+        "label": "Lantern Grove",
+        "graph": GRAPH_LANTERN_GROVE,
+        "role": "lantern",
+        "material": None,
+        "density": 0.08,
+        "voxel_cm": 420.0,
+        "use_surface_tag": False,
+        "spawn_exclusion": True,
+        "transform_jitter": 40.0,
+        "scale": (DECOR_SCALE_MIN, DECOR_SCALE_MAX),
+        "seed": SEED_DECOR,
+        "notes": "Sparse vertical accent scatter for magical grove or festival staging.",
+    },
+    "garden_ruins": {
+        "label": "Garden Ruins",
+        "graph": GRAPH_GARDEN_RUINS,
+        "role": "ruin",
+        "material": MI_GREYBOX_ROCK,
+        "density": 0.10,
+        "voxel_cm": 360.0,
+        "use_surface_tag": False,
+        "spawn_exclusion": True,
+        "transform_jitter": 28.0,
+        "scale": (0.8, 1.8),
+        "seed": SEED_DECOR + 1,
+        "notes": "Low-frequency blockout ruin accents for garden/courtyard compositions.",
+    },
+    "sakura_petal_drift": {
+        "label": "Sakura Petal Drift",
+        "graph": GRAPH_PETAL_DRIFT,
+        "role": "petal",
+        "material": MI_SAKURA_PETALS,
+        "density": 0.22,
+        "voxel_cm": 150.0,
+        "use_surface_tag": True,
+        "spawn_exclusion": True,
+        "transform_jitter": 45.0,
+        "scale": (PETAL_SCALE_MIN, PETAL_SCALE_MAX),
+        "seed": SEED_PETALS + 1,
+        "notes": "Sakura-specific petal layer that stays separate from universal grass.",
+    },
+    "zen_moss_groundcover": {
+        "label": "Zen Moss Groundcover",
+        "graph": GRAPH_MOSS_GROUNDCOVER,
+        "role": "moss",
+        "material": MI_SAKURA_GRASS,
+        "density": 0.34,
+        "voxel_cm": 210.0,
+        "use_surface_tag": True,
+        "spawn_exclusion": True,
+        "transform_jitter": 18.0,
+        "scale": (0.45, 0.9),
+        "seed": SEED_FOLIAGE + 1,
+        "notes": "Quiet Zen groundcover layer for shrine gardens and neutral template captures.",
+    },
+}
 # Melodia salvage tier hints by asset name fragment.
 MELODIA_TIER_HINTS: dict[str, str] = {
     "PCGCol_": "A",
@@ -149,6 +264,18 @@ PCG_PYTHON_OWNERS: dict[str, str] = {
     GRAPH_ROCK: "setup_pcg_universal.py",
     GRAPH_WALL: "setup_pcg_universal.py",
     GRAPH_EXCLUSION: "setup_pcg_universal.py",
+    GRAPH_MEADOW_BLOOM: "setup_pcg_universal.py",
+    GRAPH_BLOSSOM_PATH: "setup_pcg_universal.py",
+    GRAPH_LANTERN_GROVE: "setup_pcg_universal.py",
+    GRAPH_GARDEN_RUINS: "setup_pcg_universal.py",
+    GRAPH_PETAL_DRIFT: "setup_pcg_universal.py",
+    GRAPH_MOSS_GROUNDCOVER: "setup_pcg_universal.py",
+    GRAPH_MEADOW_BLOOM: "setup_pcg_universal.py",
+    GRAPH_BLOSSOM_PATH: "setup_pcg_universal.py",
+    GRAPH_LANTERN_GROVE: "setup_pcg_universal.py",
+    GRAPH_GARDEN_RUINS: "setup_pcg_universal.py",
+    GRAPH_PETAL_DRIFT: "setup_pcg_universal.py",
+    GRAPH_MOSS_GROUNDCOVER: "setup_pcg_universal.py",
     GRAPH_GREYBOX_MINIMAL: "setup_pcg_greybox.py",
     GRAPH_GREYBOX_STANDARD: "setup_pcg_greybox.py",
     GRAPH_SAKURA_SHOWCASE: "setup_pcg_greybox.py",
@@ -185,3 +312,6 @@ def melodia_tier(asset_name: str) -> str:
     if asset_name.startswith("PCG_"):
         return "B"
     return "E"
+
+
+

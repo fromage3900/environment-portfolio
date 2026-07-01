@@ -1,4 +1,4 @@
-"""Shared PCG graph construction utilities for portfolio scripts."""
+﻿"""Shared PCG graph construction utilities for portfolio scripts."""
 from __future__ import annotations
 
 import pcg_portfolio_standards as std
@@ -284,8 +284,11 @@ def wire_scatter_chain(
     transform_jitter: float = 0.0,
     spacing_prune: bool = True,
     apply_exclusion: bool = False,
+    role: str = "grass",
+    scale_min: float | None = None,
+    scale_max: float | None = None,
 ) -> dict:
-    """Build Input → Sample → [Exclusion] → [Density] → [Prune] → Transform → Spawner → Output."""
+    """Build Input â†’ Sample â†’ [Exclusion] â†’ [Density] â†’ [Prune] â†’ Transform â†’ Spawner â†’ Output."""
     import unreal
 
     inp = graph.get_input_node()
@@ -363,15 +366,15 @@ def wire_scatter_chain(
     xform, xform_settings = add_node(graph, "PCGTransformPointsSettings", -50, 0)
     apply_transform(
         xform_settings,
-        scale_min=std.GRASS_SCALE_MIN,
-        scale_max=std.GRASS_SCALE_MAX,
+        scale_min=std.GRASS_SCALE_MIN if scale_min is None else float(scale_min),
+        scale_max=std.GRASS_SCALE_MAX if scale_max is None else float(scale_max),
         jitter=float(transform_jitter),
     )
     graph.add_edge(prev, prev_pin, xform, "In")
 
     spawner, spawner_settings = add_node(graph, "PCGStaticMeshSpawnerSettings", 250, 0)
-    if not configure_spawner(spawner_settings, "grass", grass_mi):
-        raise RuntimeError("spawner configuration failed")
+    if not configure_spawner(spawner_settings, role, grass_mi):
+        raise RuntimeError(f"spawner configuration failed for role {role}")
     graph.add_edge(xform, "Out", spawner, "In")
     graph.add_edge(spawner, "Out", out, "Out")
 
@@ -382,6 +385,9 @@ def wire_scatter_chain(
         "spacing_prune": prune_wired,
         "pcgex_exclusion": exclusion_wired is not False and bool(exclusion_wired),
         "transform_jitter": float(transform_jitter),
+        "role": role,
+        "scale_min": std.GRASS_SCALE_MIN if scale_min is None else float(scale_min),
+        "scale_max": std.GRASS_SCALE_MAX if scale_max is None else float(scale_max),
     }
 
 
@@ -483,3 +489,5 @@ def fit_volume_to_ground(volume_actor, eas, *, preset: str | None = None) -> dic
         "scale": [sx, sy, sz],
         "extent": [extent.x, extent.y, extent.z],
     }
+
+

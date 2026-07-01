@@ -1,4 +1,4 @@
-"""Build universal PCG graphs under /Game/EnvSandbox/PCG/Universal/.
+﻿"""Build universal PCG graphs under /Game/EnvSandbox/PCG/Universal/.
 
   python Content/Python/setup_pcg_universal.py
   python Content/Python/setup_pcg_universal.py --force
@@ -50,6 +50,40 @@ def build_foliage(
     return target, meta
 
 
+
+def build_style_graphs(*, force: bool = False) -> dict:
+    """Build expanded universal/style PCG layers from STYLE_PRESETS."""
+    import unreal
+
+    results: dict = {}
+    for key, cfg in std.STYLE_PRESETS.items():
+        graph_path = cfg["graph"]
+        folder = graph_path.rsplit("/", 1)[0]
+        graph, _ = gb.load_or_create_graph(graph_path, folder, force=force)
+        scale = cfg.get("scale", (std.GRASS_SCALE_MIN, std.GRASS_SCALE_MAX))
+        meta = gb.wire_scatter_chain(
+            graph,
+            voxel_cm=float(cfg.get("voxel_cm", std.DEFAULT_VOXEL_CM)),
+            grass_mi=cfg.get("material") or std.MI_GREYBOX_GRASS,
+            use_surface_tag=bool(cfg.get("use_surface_tag", False)),
+            density_mult=float(cfg.get("density", std.DEFAULT_DENSITY)),
+            transform_jitter=float(cfg.get("transform_jitter", 0.0)),
+            spacing_prune=True,
+            apply_exclusion=bool(cfg.get("spawn_exclusion", False)),
+            role=cfg.get("role", "grass"),
+            scale_min=float(scale[0]),
+            scale_max=float(scale[1]),
+        )
+        unreal.EditorAssetLibrary.save_asset(graph_path, only_if_is_dirty=False)
+        results[key] = {
+            "path": graph_path,
+            "label": cfg.get("label", key),
+            "seed": cfg.get("seed"),
+            "notes": cfg.get("notes"),
+            **meta,
+        }
+    return results
+
 def build_rock(*, force: bool = False) -> tuple[str, dict]:
     import unreal
 
@@ -80,7 +114,7 @@ def build_rock(*, force: bool = False) -> tuple[str, dict]:
 
 
 def build_exclusion_subgraph(*, force: bool = False) -> tuple[str, dict]:
-    """Exclusion subgraph — tag filter passthrough documenting PCG_Exclude intent."""
+    """Exclusion subgraph â€” tag filter passthrough documenting PCG_Exclude intent."""
     import unreal
 
     graph, _ = gb.load_or_create_graph(std.GRAPH_EXCLUSION, std.DIR_SUBGRAPHS, force=force)
@@ -116,7 +150,7 @@ def build_exclusion_subgraph(*, force: bool = False) -> tuple[str, dict]:
 
 
 def build_wall_detail(*, force: bool = False) -> tuple[str, dict]:
-    """Phase 3 — spline wall scatter stub."""
+    """Phase 3 â€” spline wall scatter stub."""
     import unreal
 
     graph, _ = gb.load_or_create_graph(std.GRAPH_WALL, std.DIR_UNIVERSAL, force=force)
@@ -156,6 +190,7 @@ def build_all(*, force: bool = False) -> dict:
     rock_path, rock_meta = build_rock(force=force)
     excl_path, excl_meta = build_exclusion_subgraph(force=force)
     wall_path, wall_meta = build_wall_detail(force=force)
+    style_graphs = build_style_graphs(force=force)
     collections = build_collections(force=force)
 
     import setup_pcg_greybox as grey
@@ -166,6 +201,7 @@ def build_all(*, force: bool = False) -> dict:
         for p in (
             foliage_path, rock_path, excl_path, wall_path,
             std.GRAPH_GREYBOX_MINIMAL, std.GRAPH_GREYBOX_STANDARD,
+            *(entry["path"] for entry in style_graphs.values()),
         )
     )
     collections_ok = all(
@@ -185,6 +221,7 @@ def build_all(*, force: bool = False) -> dict:
             "exclusion": {"path": excl_path, **excl_meta},
             "wall": {"path": wall_path, **wall_meta},
         },
+        "style_graphs": style_graphs,
         "collections": collections,
         "greybox_presets": greybox_presets,
     }
@@ -215,3 +252,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+

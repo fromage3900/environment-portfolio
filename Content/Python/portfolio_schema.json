@@ -112,7 +112,14 @@
       "material_name": ["_dict_key"],
       "path": ["path"],
       "label": ["label"],
-      "thumbnail": ["thumbnail"]
+      "thumbnail": ["thumbnail"],
+      "material_type": ["material_type"],
+      "shader_family": ["shader_family"],
+      "output_maps": ["output_maps"],
+      "parent_master": ["parent_master"],
+      "status": ["status"],
+      "purpose": ["purpose"],
+      "source_module": ["source_module"]
     }
   },
   "legacy_aliases": {
@@ -120,3 +127,4 @@
     "timestamp": ["scan_time", "generated_at"]
   }
 }
+

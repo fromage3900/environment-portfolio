@@ -1,4 +1,4 @@
-"""Audit universal PCG graphs and smoke-test greybox preset.
+﻿"""Audit universal PCG graphs and smoke-test greybox preset.
 
   python Content/Python/audit_pcg_universal.py
 """
@@ -34,7 +34,7 @@ SCATTER_GRAPH_MIN_NODES = 5
 def _build_meta_by_path(build: dict) -> dict[str, dict]:
     """Map graph package paths to scatter-chain metadata from last build report."""
     by_path: dict[str, dict] = {}
-    for section in ("graphs", "greybox_presets"):
+    for section in ("graphs", "greybox_presets", "style_graphs"):
         payload = build.get(section, {})
         if not isinstance(payload, dict):
             continue
@@ -67,7 +67,7 @@ def _audit_in_ue() -> dict:
         std.GRAPH_SAKURA_SHOWCASE,
     }
     graphs = {}
-    for path in EXPECTED_GRAPHS:
+    for path in expected_graphs():
         exists = unreal.EditorAssetLibrary.does_asset_exist(path)
         node_count = 0
         if exists:
@@ -132,3 +132,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
