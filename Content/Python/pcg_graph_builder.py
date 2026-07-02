@@ -13,10 +13,14 @@ def ensure_directories() -> None:
 
 
 def clear_graph_nodes(graph) -> None:
-    if hasattr(graph, "remove_nodes"):
-        graph.remove_nodes()
-        return
-    for node in list(graph.get_nodes()):
+    """Remove every node from a PCG graph before a rebuild.
+
+    NOTE: PCGGraph.remove_nodes() is a no-op in this engine build (confirmed
+    2026-07-02: a rebuilt graph kept its old nodes alongside the new ones,
+    silently doubling instance counts). Do not use it. Per-node removal via
+    get_editor_property("nodes") + remove_node() is the proven-working path.
+    """
+    for node in list(graph.get_editor_property("nodes")):
         try:
             graph.remove_node(node)
         except Exception:
