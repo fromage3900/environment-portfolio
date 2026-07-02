@@ -2,6 +2,14 @@
 
 Status labels: `Implemented`, `Partial`, `Broken`, `Planned`, `Research`, `Deprecated`.
 
+## MeshBlend integration added to `M_Master_Toon_Universal` (`Implemented`, additive/safe)
+
+Wired `MF_MeshBlend_Activator_Index_1` (real, already-authored function — reads `PerInstanceCustomData` index 1 as a per-instance "AutoBlendID" driven by runtime code like `BP_MeshBlend_Activator`, or falls back to a static scalar via its own internal "Use Static Value" switch) into the existing `LayerManualMix → Lerp(Alpha)` connection, gated behind a **new** `bMeshBlendActivator_Active` static switch (default `False`). 916 → 918 expressions, 10 → 11 top-level switches (plus the function's own internal "Use Static Value" switch, exposed on instances).
+
+**Does not touch `r.MeshBlend.Enable`** (still `0`, disabled since June 20 for the documented UE5.7-vs-5.8 plugin incompatibility) — this only calls a standard material function reading per-instance custom data, not the plugin's proprietary runtime rendering path, so it works regardless of that cvar. Verified additive/non-disruptive before touching production: prototyped identically in `_Scratch/` first, confirmed via instance readback that toggling the new switch and its `AutoBlendID` param work correctly, then applied the same proven wiring to production and re-verified (BSDF intact, all 10 original switches unchanged, `LayerManualMix` default unchanged at 0.5, new switch defaults off — zero behavior change for any existing instance unless explicitly opted in).
+
+**How to use it**: on any instance, set `bMeshBlendActivator_Active=True`. With `Use Static Value=False` (default), the blend follows `PerInstanceCustomData` index 1 set at runtime (e.g. by a `BP_MeshBlend_Activator` component on an ISM). With `Use Static Value=True`, it uses the `StaticAutoBlendID`/`AutoBlendID` scalar param instead — useful for authoring/testing without a live activator actor.
+
 ## Sakura Level Push Stage 6 complete: real NASA starmap wired in, constellation VFX confirmed already-correct (`Implemented`)
 
 - **Found real, already-imported 4K NASA textures never used**: `/Game/EnvSandbox/Materials/Space/Textures/T_NASA_StarMap_4K` (4096×2048, real equirectangular starmap projection, confirmed via `inspect_texture_channels`) and `T_NASA_MilkyWay_4K`. The `StarMap` param on `MF_SpaceParallax`/`MI_Show_CelestialNebula` had been reusing a sparkle alpha texture (`T_Spark_Twinkle8`) as a placeholder stand-in the whole time.
