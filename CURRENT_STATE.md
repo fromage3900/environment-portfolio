@@ -2,6 +2,14 @@
 
 Status labels: `Implemented`, `Partial`, `Broken`, `Planned`, `Research`, `Deprecated`.
 
+## CRASH BUG FOUND 2026-07-02 (overnight, `Broken`): one of the 9 Baroque `*Ex` graphs contains a `PCGExCreateShapes` node that hard-crashes the engine on generate
+
+Root-caused via log inspection (`Saved/Logs/BS_GodFile.log`) after two consecutive editor crashes during the Step 1 batch-verification sweep. Crash signature: native C++ crash (unrecoverable from Python, `try/except` does not help) inside `UnrealEditor-PCGExElementsShapes.dll!PCGExCreateShapes::FProcessor::OutputPerSeed()` → `PCGExPointArrayDataHelpers::SetNumPointsAllocated()` — a background-worker-thread crash during `ParallelFor`, consistent with a bad/negative point count being requested by a `PCGExCreateShapes` node. Timestamp of the crash lines up exactly with the batch-spawn-and-generate script that triggered all 9 `TEST_Baroque_*Ex` actors in one shot (`AtriumEx/BalconyEx/ColonnadeEx/CorniceEx/FacadeEx/NaveVaultEx/PilasterEx/RotundaEx/EntryEx`) — meaning **one of these 9 graphs, not yet identified, contains the crashing node**.
+
+**Do not batch-generate these 9 graphs again.** Test them ONE AT A TIME with an editor-status check between each (`monolith_status`), so a crash can be attributed to the specific graph instead of taking down the whole batch. Once identified, either delete/disable the `PCGExCreateShapes` node in that graph or replace it with a vanilla `PCGCreatePointsSettings` node (the pattern already proven working in the Escher `*Ex` fixes and the 4 new Escher room generators).
+
+`GothicCorridorEx` was also never found at its expected path (`PCG_BaroqueGothicCorridorEx`) — needs a `list_assets` search under `/Game/EnvSandbox/PCG/Styles/Baroque/` to locate its real name, still outstanding.
+
 ## RESEARCH 2026-07-02 (overnight): UE5.8 PCG capabilities + Escher precedent, both `Research` status
 
 - **UE5.8 added "Mesh Terrain"** — a terrain system based on 3D meshes instead of heightmaps, natively PCG-integrated, explicitly supports overlapping geometry (caves, overhangs, complex structures). This is a real, current-version answer to the "landscape creation is blocked, no API" item flagged in the plan — worth a dedicated investigation pass (does Monolith expose a Mesh Terrain API yet? if not, is it reachable via `run_python` against the native `unreal.MeshTerrain*` classes?) before continuing to treat landscape as fully blocked. [Unreal Engine 5.8 Preview](https://www.biunivoca.com/en/blog/unreal-engine-5-8-preview), [UE 5.8 release notes](https://www.unrealengine.com/news/unreal-engine-5-8-is-now-available)
