@@ -2,6 +2,12 @@
 
 Status labels: `Implemented`, `Partial`, `Broken`, `Planned`, `Research`, `Deprecated`.
 
+## PLAN STEP 3 SCOPING 2026-07-02 (overnight): `AncientTempleRuins` migration needs a different script pattern than `migrate_props_from_source.py`
+
+Inspected `G:/ueprojects/Shepherd_Brennan_10/Content/AncientTempleRuins/` structure: it's organized by **asset type** (`Blueprints/`, `Materials/`, `Textures/`, `Environment/{Construction,Foliage,GroundScatter,Prop,Rock}/`), not by **self-contained per-prop subfolder** like `migrate_props_from_source.py`'s existing `SOURCES` (MagiciansLibrary, Melodia) assume. That script's material-slot repair heuristic ("if a copied subfolder has exactly 1 material, reassign every mesh's slots to it") doesn't apply here — meshes and their materials live in separate top-level folders with many-to-many relationships, not a 1-mesh-1-material-per-folder pattern.
+
+Migrating this correctly needs: (1) raw-copy `Materials/`, `Textures/`, and all of `Environment/*` together (not per-subfolder), (2) a different repair pass that resolves each mesh's actual per-slot material reference (not just "the 1 material in this folder") — likely by reading each source `.uasset`'s dependency list via `AssetRegistryHelpers` before copying, then remapping paths post-copy rather than guessing from folder co-location. Not attempted tonight — a broken migration would produce assets with silently-wrong materials I can't visually verify without the user, and is worse than not migrating at all. Real next step, scoped precisely, not just "do the migration."
+
 ## PLAN STEP 2 FINDING 2026-07-02 (overnight, `Broken`, honest report before any fix attempt): `PCG_FractalButtress_BS` and `PCG_M1_GrammarNave_BS` are NOT working recursive/grammar systems — they're scaffolded placeholders
 
 Live-inspected both (safe, static node/property reads, no generate calls needed):
