@@ -2,6 +2,21 @@
 
 Status labels: `Implemented`, `Partial`, `Broken`, `Planned`, `Research`, `Deprecated`.
 
+## RESOLVED 2026-07-02 (overnight): unattended-boot hang was TWO stacked issues, both fixed
+
+The editor appeared to "crash on relaunch" repeatedly overnight, but the real problem for most of the night was a **hang**, not a crash: process alive, memory flat, log frozen — not the PCGExCreateShapes bug (that only fires when a Baroque graph is generated, and boot never got that far).
+
+1. **`GaeaUnrealTools` plugin version mismatch** (built for 5.7.0, project runs 5.8) logs a warning right before the hang point every time. Fixed: disabled it in `BS_GodFile.uproject` (`"Enabled": false`).
+2. **A second, separate blocking modal** (`LogMonolith: Warning: MODAL_OPEN ... title='' text=''`) opens immediately after `LogInit: Display: Engine is initialized` — Monolith itself logs this and confirms MCP is unresponsive until dismissed, which is exactly the observed symptom (frozen log/memory, `monolith_status` failing). With no one at the keyboard overnight, this blocked every relaunch after the Gaea fix too.
+
+**Fix: launch with the `-unattended` command-line flag**, which auto-dismisses blocking modal dialogs. Confirmed working — `monolith_status` responded immediately after an `-unattended` launch where every prior relaunch attempt (via `cmd.exe /c start`, direct exe, and PowerShell `Start-Process` without the flag) hung indefinitely.
+
+**Going forward, always launch this project as:**
+```powershell
+Start-Process -FilePath "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" -ArgumentList '"G:\EnvironmentPortfolio\BS_GodFile\BS_GodFile.uproject"','-unattended' -PassThru
+```
+via the PowerShell tool (not Bash's `cmd.exe /c start`, which did not reliably produce a surviving process in this environment — verify with `Get-Process -Id $p.Id`, not just `tasklist`, immediately after).
+
 ## CRASH BUG FOUND 2026-07-02 (overnight, `Broken`): one of the 9 Baroque `*Ex` graphs contains a `PCGExCreateShapes` node that hard-crashes the engine on generate
 
 Root-caused via log inspection (`Saved/Logs/BS_GodFile.log`) after two consecutive editor crashes during the Step 1 batch-verification sweep. Crash signature: native C++ crash (unrecoverable from Python, `try/except` does not help) inside `UnrealEditor-PCGExElementsShapes.dll!PCGExCreateShapes::FProcessor::OutputPerSeed()` → `PCGExPointArrayDataHelpers::SetNumPointsAllocated()` — a background-worker-thread crash during `ParallelFor`, consistent with a bad/negative point count being requested by a `PCGExCreateShapes` node. Timestamp of the crash lines up exactly with the batch-spawn-and-generate script that triggered all 9 `TEST_Baroque_*Ex` actors in one shot (`AtriumEx/BalconyEx/ColonnadeEx/CorniceEx/FacadeEx/NaveVaultEx/PilasterEx/RotundaEx/EntryEx`) — meaning **one of these 9 graphs, not yet identified, contains the crashing node**.
