@@ -2,6 +2,12 @@
 
 Status labels: `Implemented`, `Partial`, `Broken`, `Planned`, `Research`, `Deprecated`.
 
+## CLEAN REVIEW CHECKPOINT 2026-07-02 (afternoon session close): `M_Master_Toon_Universal` finalized as `Implemented`, stable
+
+Final live re-verification before closing this session's material work: **916 expressions, 10 static switches** (`bUseSeparateRoughnessMap`/`bUseSeparateMetallicMap`/`bUseHeightToNormal`/`bLayerA_Active`/`bLayerB_Active`/`bLayerC_Active`/`bSparkleAdvanced`/`bSheenUsesNormal`/`UseUDSTimeOfDay`/`bNikkiHero`), all traced with 0 orphans in an earlier pass. **0 duplicate parameter declarations** across 241 total param nodes / 241 unique names — the "duplicate material params" item in Known Technical Debt does not currently manifest on the master itself (may have referred to instance-level duplication, or was already resolved by an earlier session). BSDF (`MaterialExpressionSubstrateToonBSDF`) present and fully wired (BaseColor/Metallic/Roughness/Normal/EmissiveColor all non-null, confirmed earlier this session). No changes made this pass — this is a verification/finalization checkpoint, not a rebuild. **Status: stable, ready for production/portfolio use as-is.**
+
+Everything touched this extended session (overnight autonomous + afternoon) is committed with clear reasoning per-commit; nothing of this session's work is left uncommitted. Pre-existing uncommitted drift from other parallel tooling sessions (`generate_portfolio.py`, `material_family_manifest_full.py`, several PCG graphs, `Docs/AgentMemory/Decisions.md`, `NEXT_ACTIONS.md`, `_github_deploy`, a few Zen/Showcase material instances) remains untouched and uncommitted — not this session's work, not verified, left for whoever owns those changes.
+
 ## `capture_material_grid`/`capture_scene_preview` currently broken this session (`Broken`, real regression, not a content bug)
 
 Tried to capture a render of `MI_Show_ForestFoliage` for user feedback (afternoon session) — got the `WorldGridMaterial` checkerboard fallback pattern instead of the real material. Diagnosed methodically before reporting:
