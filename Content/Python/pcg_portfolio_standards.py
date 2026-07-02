@@ -92,10 +92,15 @@ MI_SAKURA_GRASS = "/Game/EnvSandbox/Materials/Instances/Sakura/MI_Sakura_Grass"
 MI_SAKURA_PETALS = "/Game/EnvSandbox/Materials/Instances/Sakura/MI_Sakura_Petals"
 
 SCATTER_MESHES: dict[str, list[str]] = {
-    # NOTE (2026-07-02): "grass"/"petal"/"flower"/"moss" still have no real
-    # foliage-appropriate mesh in the project -- forcing e.g. a migrated prop
-    # in as a stand-in would look wrong, not just unpolished. Left as
-    # placeholders deliberately; needs a real foliage asset sourcing pass.
+    # NOTE (2026-07-02): real grass-card content now exists and is wired --
+    # see Content/Python/build_experimental_foliage.py, which pairs a real
+    # alpha-cutout texture (T_FoliageCards_grass1, previously authored but
+    # never used) with a properly-renamed M_ToonFoliage master and a new
+    # MI_ExperimentalGrassCard instance, verified live (9583 instances,
+    # correct material override confirmed). Currently a self-contained
+    # experimental script (mesh+material paired directly), not yet folded
+    # into this shared role table -- "grass" below is still the old
+    # placeholder set. "petal"/"flower"/"moss" remain genuinely unaddressed.
     "grass": [
         "/Game/Greybox_Kit/SM_Block_Cube_1.SM_Block_Cube_1",
         "/Engine/BasicShapes/Cone.Cone",
