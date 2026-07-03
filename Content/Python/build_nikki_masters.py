@@ -260,15 +260,24 @@ def build(name: str, landscape: bool = False) -> dict:
     con(fade_col, "", atmos, "B")
     con(dmul, "", atmos, "Alpha")
 
-    # ---- Emissive: iridescence emissive * strength, faded by atmosphere ----
+    # ---- Emissive: iridescence rim + EmissiveFloor self-lift, atmos-faded ----
+    # EmissiveFloor is the Nikki signature: a subtle BaseColor self-glow that
+    # gives surfaces the luminous pastel look instead of clay-under-daylight.
     estr = sparam("NikkiEmissiveStrength", 1.0, 0.0, 4.0, "Nikki", -480, -120)
     emul = expr(unreal.MaterialExpressionMultiply, -300, -140)
     con(irid, "EmissiveOut", emul, "A")
     con(estr, "", emul, "B")
-    einv = expr(unreal.MaterialExpressionOneMinus, -120, -80)
+    efloor = sparam("EmissiveFloor", 0.12, 0.0, 1.0, "Nikki", -480, -40)
+    efmul = expr(unreal.MaterialExpressionMultiply, -300, -40)
+    con(graded, "", efmul, "A")
+    con(efloor, "", efmul, "B")
+    eadd = expr(unreal.MaterialExpressionAdd, -180, -100)
+    con(emul, "", eadd, "A")
+    con(efmul, "", eadd, "B")
+    einv = expr(unreal.MaterialExpressionOneMinus, -120, -20)
     con(dmul, "", einv, "")
     efinal = expr(unreal.MaterialExpressionMultiply, 20, -120)
-    con(emul, "", efinal, "A")
+    con(eadd, "", efinal, "A")
     con(einv, "", efinal, "B")
 
     # ---- Substrate Toon BSDF ----
