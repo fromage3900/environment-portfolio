@@ -79,12 +79,27 @@ Status legend: KEEP (core, untouched) · GATE (keep, add static switch)
 
 - [x] Stage 0 audit (script `Content/Python/audit_universal_instance_overrides.py`)
 - [x] Stage 1 review (this document; per-family verdicts above)
-- [ ] Stage 2 additive: 5 feature gates + ColorRamp insert + slider/group
-      retrofit (incl. Itto→`InkWear`, Madoka→`VeinGlow` regrouping) + gate
-      flips for the audit-listed instances
-- [ ] Stage 3 removal: Character family bypass + native orphan sweep
-- [ ] Stage 4 consolidations: ramps → MF_ColorRamp3; single sheen; one
-      shadow-tint system; core-parallax resolution; Macro world-space fix
+- [x] Stage 2 additive (commits `0a33642`, `6d57e37`, `377b20d`, `a6a325c`):
+      142 scalars clamped; InkWear/VeinGlow regroup; ColorRamp inserted;
+      gates live for Celestial/Sparkle/FairyDust/Weather/Elemental (default
+      OFF; 42 audited user instances flipped ON + saved). **Henshin gate
+      deliberately skipped**: `MagicalTransform` fans to 5 consumers incl.
+      Subtracts — gating risks the zero-state math for marginal savings.
+- [x] Stage 3 removal: Character family bypassed
+      (`Lerp_288→Lerp_297.A`, `Multiply_954→Add_313.B`) + native sweep.
+      918 → 844 exprs; 13 character params gone.
+- [x] Stage 4 (partial): **Macro world-space fix applied** — was
+      `TexCoord × MacroScale` (default 0.0008, UV-dependent); now
+      `WorldPosition.xy × MacroScale × 1e-5` (100 ≈ 10 m period). 24
+      instances' legacy overrides migrated (×125000, clamped 1–512; 3
+      garbage negatives reset to 100). Zen instances clamped at 512 were
+      UV-dense — **eye-check recommended**: BambooWood, MossStone,
+      RiverStone, TempleStep.
+- [ ] Stage 4 remaining: ramps → MF_ColorRamp3; single sheen; one
+      shadow-tint system; core-parallax resolution
 - [ ] Stage 5 Melodia conversions: fix M_SDF_ParallaxPulse, then
       M_Substrate_VinylGroove / _Facade_Baroque / _CelestialStarMap
-- [ ] Stage 6 wrap: CURRENT_STATE.md, before/after table, commits
+- [ ] Stage 6 wrap: CURRENT_STATE.md, before/after table
+
+Instruction budget so far: PS 1128 → 946 (default path), expressions
+918 → 851 (gates add a few nodes back on top of the 844 post-removal floor).
