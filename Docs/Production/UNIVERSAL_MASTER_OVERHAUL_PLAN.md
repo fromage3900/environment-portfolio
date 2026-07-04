@@ -24,9 +24,15 @@ Companion doc: `UNIVERSAL_MASTER_NODE_REVIEW.md` (per-family verdicts + node dum
 | Fix | DetailNormal was a marble COLOR texture in a normal slot → real normal; SparkleMask ugly twinkle → Sparkle4 | `599dd48` |
 | Expansion | **Real thin-film spectral iridescence** (IQ cosine palette) replacing flat single-hue tint; new IridescenceCycles | `285a82e` |
 | Expansion | **Colored, color-ramped shadows** (bShadowRamp_Active: ShadowRampLow/Mid/High driven by shadow depth) | `cff595b` |
+| Magic | **Dream Rim Iridescence** (bDreamRim_Active: fresnel × IQ thin-film spectral shimmer spliced into emissive — rainbow silhouette rim) | `a5050e4` |
+| Magic | **Dream Bloom** (DreamBloomStrength default 0: brightest base areas bloom into soft pastel self-glow — the "everything gently luminous" Nikki quality) | `3697144` |
+| MPC | **GlobalEmissiveBoost wired** as a global emissive multiplier from MPC_Portfolio_Palette (default 1.0 = no change) — whole-level glow control alongside GlobalSparkleIntensity + TimeOfDay | `e9e12af` |
 
-Net so far: **918 → 868 expressions**, PS **1128 → ~1015** (default path), the
-5-billion-slider disease gone, garbage instances (IridescentRock) cleaned.
+Net so far: **918 → 907 expressions** (magic/MPC adds sit on top of the removal
+floor), the 5-billion-slider disease gone, garbage instances (IridescentRock)
+cleaned. Overnight verification (2026-07-04): sparkle map confirmed on the good
+`T_Spark_Sparkle4`; both MPCs (MPC_Portfolio_Palette, MPC_CelestialVault) resolve
+with defined params — no silent-zero failures.
 
 ---
 
