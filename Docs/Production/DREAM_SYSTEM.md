@@ -14,6 +14,10 @@ identically until an author opts in. All ride the emissive path and are scaled b
 | 10d | Dream Flow | `dot(WorldPos,dir)·Scale + Time·Speed` → IQ cosine | living aurora drift | `DreamFlowStrength` |
 | 10e | Dream Pulse | `×(1 + Amp·sin(Time·Speed))` on final emissive | whole surface breathing | `DreamPulseAmp` |
 | 10f | Kaleidoscope Sigil | polar fold `abs(frac(ang/seg)-0.5)` + ring `sin(rad·Rings)` × IQ palette | rotating rainbow mandala rune | `SigilStrength` |
+| 10g | Dawn Wash | `lerp(low,high, saturate(WorldZ·Scale+Bias))` | height-graded pastel dawn glow | `DawnStrength` |
+| 10h | Dream Mist | flowing pseudo-curl sin-noise, animated | drifting swirling mist | `MistStrength` |
+| 10i | Twinkle Glints | hash-placed star cells × per-cell time twinkle | sparkling star glints | `GlintStrength` |
+| 14 | Celestial cohesion | `bCelestialUsesDreamPalette`: MF_SpaceParallax tints ← Melusina MPC palette | constellation in-family with dream palette | switch (default OFF) |
 | — | GlobalEmissiveBoost | MPC scalar multiply (terminal) | level-wide glow dimmer | MPC default 1.0 |
 
 Kaleidoscope Sigil is the **procedural Fairy-Glyph** — a texture-free animated
