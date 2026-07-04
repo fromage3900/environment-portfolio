@@ -13,6 +13,7 @@ Steps (sequential, best-effort):
   4. capture_portfolio_renders.run_all_captures() (viewport + Monolith captures)
   5. compile_render_plates.write_renders_manifest() (idempotent disk compiler)
   6. portfolio_aggregator.ensure_package_written() -> Saved/Portfolio/portfolio_package.json
+  7. package_to_website_handoff.write_handoff() -> _github_deploy/generated/*_config.json
 
 UE steps (metadata + renders) require RHI; shell launch omits -nullrhi.
 """
@@ -66,6 +67,7 @@ def run_portfolio_pipeline() -> dict:
     import scene_metadata_exporter as metadata
     import export_genome_axis as genome_axis
     import audit_pcg_heatmap as pcg_heatmap
+    import package_to_website_handoff as website_handoff
 
     time.sleep(15)
     steps: list[dict] = []
@@ -119,6 +121,8 @@ def run_portfolio_pipeline() -> dict:
     except Exception as exc:
         steps.append({"step": "portfolio_aggregator", "ok": False, "error": str(exc)})
         _log(f"FAIL portfolio_aggregator: {exc}")
+
+    step("package_to_website_handoff", website_handoff.write_handoff)
 
     all_ok = PACKAGE_PATH.is_file() and all(
         entry.get("ok") for entry in steps if entry.get("step") != "portfolio_aggregator"

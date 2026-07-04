@@ -100,6 +100,41 @@ def radial_overlay(img, center, radius, color, alpha=110):
     img.alpha_composite(overlay)
 
 
+def iridescent_wash(img, dark=True, strength=1.0):
+    w, h = img.size
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    pixels = overlay.load()
+    stops = [
+        (0.00, hex_to_rgb("#F5E8EA"), 0),
+        (0.25, hex_to_rgb("#E7C9CE"), 46),
+        (0.52, hex_to_rgb("#A99AD0"), 40),
+        (0.74, hex_to_rgb("#8AA9D6"), 34),
+        (1.00, hex_to_rgb("#DDC79B"), 26),
+    ]
+    alpha_scale = (.72 if dark else .52) * strength
+    for y in range(h):
+        for x in range(w):
+            t = ((x / max(1, w - 1)) * .68 + (y / max(1, h - 1)) * .32)
+            for idx in range(len(stops) - 1):
+                a_pos, a_col, a_alpha = stops[idx]
+                b_pos, b_col, b_alpha = stops[idx + 1]
+                if a_pos <= t <= b_pos:
+                    local = (t - a_pos) / max(.001, b_pos - a_pos)
+                    col = lerp(a_col, b_col, local)
+                    alpha = int((a_alpha + (b_alpha - a_alpha) * local) * alpha_scale)
+                    pixels[x, y] = (*col, alpha)
+                    break
+    sheen = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    sheen_draw = ImageDraw.Draw(sheen, "RGBA")
+    for offset in range(-h, w, 240):
+        sheen_draw.polygon(
+            [(offset, h), (offset + 155, h), (offset + h + 155, 0), (offset + h, 0)],
+            fill=(255, 255, 255, int(13 * strength if dark else 18 * strength)),
+        )
+    overlay.alpha_composite(sheen.filter(ImageFilter.GaussianBlur(18)))
+    img.alpha_composite(overlay)
+
+
 def starfield(draw, w, h, dark=True, seed=4):
     random.seed(seed)
     for _ in range(96 if dark else 44):
@@ -194,6 +229,7 @@ def base_card(size=(1080, 1080), dark=True, seed=4):
         img = gradient(size, COLORS["ivory_light"], COLORS["ivory"])
         radial_overlay(img, (int(size[0]*.82), int(size[1]*.14)), int(size[0]*.34), COLORS["sakura"], 55)
         radial_overlay(img, (int(size[0]*.14), int(size[1]*.9)), int(size[0]*.32), COLORS["gold_light"], 35)
+    iridescent_wash(img, dark=dark, strength=.95)
     draw = ImageDraw.Draw(img, "RGBA")
     starfield(draw, size[0], size[1], dark=dark, seed=seed)
     return img, draw
@@ -303,6 +339,84 @@ CARDS = [
         "tags": ["01 / 05", "breakdown", "portfolio"],
         "footer": "Swipe for process",
         "seed": 21,
+    },
+    {
+        "filename": "melodia-blender-retopo-square.png",
+        "size": (1080, 1080),
+        "theme": "light",
+        "layout": "passport",
+        "kicker": "Blender retopology",
+        "title": "Clean Topology Pass",
+        "subtitle": "silhouette preservation, loops, UV-ready mesh",
+        "specs": [("tool", "blender"), ("focus", "loops / normals / UV seams"), ("output", "game-ready mesh")],
+        "tags": ["retopo", "blender", "mesh study"],
+        "footer": "Topology read",
+        "seed": 27,
+    },
+    {
+        "filename": "melodia-blender-trimsheet-square.png",
+        "size": (1080, 1080),
+        "theme": "dark",
+        "layout": "artbox",
+        "kicker": "Blender / Substance",
+        "title": "Trim Sheet Study",
+        "subtitle": "ornament strips, UV layout, material reuse",
+        "slot": "drop trimsheet preview here",
+        "tags": ["trim sheet", "uv", "substance"],
+        "footer": "Material economy",
+        "seed": 31,
+    },
+    {
+        "filename": "melodia-ue-material-instance-square.png",
+        "size": (1080, 1080),
+        "theme": "dark",
+        "layout": "passport",
+        "kicker": "Unreal material instance",
+        "title": "Stylized Surface Controls",
+        "subtitle": "ramp tint, fresnel, sparkle, wetness",
+        "specs": [("master", "toon universal"), ("params", "ramp / fresnel / sheen"), ("capture", "beauty + graph")],
+        "tags": ["unreal", "shader", "lookdev"],
+        "footer": "UE breakdown",
+        "seed": 35,
+    },
+    {
+        "filename": "melodia-ue-niagara-ambience-square.png",
+        "size": (1080, 1080),
+        "theme": "dark",
+        "layout": "artbox",
+        "kicker": "Unreal Niagara",
+        "title": "Ambient VFX Pass",
+        "subtitle": "petals, motes, glow sprites, timing",
+        "slot": "drop niagara capture here",
+        "tags": ["niagara", "vfx", "ambience"],
+        "footer": "Motion plate",
+        "seed": 39,
+    },
+    {
+        "filename": "melodia-ue-pcg-route-square.png",
+        "size": (1080, 1080),
+        "theme": "light",
+        "layout": "passport",
+        "kicker": "Unreal PCG",
+        "title": "Route-Safe Scatter",
+        "subtitle": "density masks, path clearance, foliage rhythm",
+        "specs": [("system", "PCG graph"), ("proof", "heatmap / scatter / route"), ("output", "walkable garden")],
+        "tags": ["pcg", "unreal", "debug view"],
+        "footer": "World layout",
+        "seed": 43,
+    },
+    {
+        "filename": "melodia-blender-geometry-nodes-portrait.png",
+        "size": (1080, 1350),
+        "theme": "light",
+        "layout": "artbox",
+        "kicker": "Blender Geometry Nodes",
+        "title": "Procedural Tool Walkthrough",
+        "subtitle": "inputs, masks, variations, Unreal handoff",
+        "slot": "drop node graph / result here",
+        "tags": ["01 / 04", "nodes", "breakdown"],
+        "footer": "Swipe for setup",
+        "seed": 47,
     },
 ]
 

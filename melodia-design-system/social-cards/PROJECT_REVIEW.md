@@ -2,11 +2,12 @@
 
 ## Current Status
 
-- Five ready-to-post PNG defaults exist in `exports/`.
-- Five layered SVG sources exist in `sources/` for Figma import and editing.
+- Eleven ready-to-post PNG defaults exist in `exports/`.
+- Eleven layered SVG sources exist in `sources/` for Figma import and editing.
 - HTML preview exists for browser/design review.
 - PNG generation is deterministic via `generate_social_cards.py`.
 - SVG generation is deterministic via `generate_layered_svgs.py`.
+- Iridescent material washes are baked into PNG exports and remain editable in SVG sources.
 
 ## What Is Editable
 
@@ -35,7 +36,7 @@ The templates follow the original Melodia rules:
 ## Gaps
 
 - Current SVG text imports as text if fonts are available, but Figma may substitute fonts until Fraunces, Cinzel, Inter, and IBM Plex Mono are installed/enabled.
-- The SVG sources are intentionally generic placeholders. They still need future variants with real render slots for Sakura Dream, Space Cathedral, Baroque Castle, and Bioluminescent Grotto.
+- The SVG sources are intentionally generic placeholders. They still need final art imports for Sakura Dream, Space Cathedral, Baroque Castle, and Bioluminescent Grotto.
 - No native `.fig` file is generated. Figma import is the editing path for now.
 
 ## Recommended Next Pass

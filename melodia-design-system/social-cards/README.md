@@ -18,6 +18,12 @@ Generated PNGs live in `exports/`:
 - `melodia-shader-breakdown-square.png` - technical shader breakdown card.
 - `melodia-geometry-nodes-square.png` - procedural/geometry-node process card.
 - `melodia-process-carousel-portrait.png` - 4:5 carousel cover.
+- `melodia-blender-retopo-square.png` - Blender topology/retopo breakdown.
+- `melodia-blender-trimsheet-square.png` - Blender/Substance trimsheet presentation.
+- `melodia-ue-material-instance-square.png` - Unreal material instance controls.
+- `melodia-ue-niagara-ambience-square.png` - Unreal Niagara ambience/VFX capture.
+- `melodia-ue-pcg-route-square.png` - Unreal PCG route/debug breakdown.
+- `melodia-blender-geometry-nodes-portrait.png` - 4:5 Geometry Nodes process carousel cover.
 
 ## Source Files
 
@@ -50,3 +56,5 @@ Import the SVG files from `sources/`. The groups are named for editing:
 - `Metadata/Tags`
 
 The PNG files in `exports/` are flat posting files; use the SVG files when you want layers.
+
+The exported PNGs include the iridescent wash already baked in. The SVG files keep that wash editable as `IridescentShaderOverlay/FigmaEditable`.

@@ -1,4 +1,4 @@
-﻿"""Build full disk-only material family manifests for portfolio/package tooling.
+"""Build full disk-only material family manifests for portfolio/package tooling.
 
 This is the robust variant of `material_family_manifest.py`: it safely evaluates
 the curated instance data tables without importing Unreal-only modules.
@@ -80,7 +80,7 @@ def _eval_node(node: ast.AST, env: dict[str, Any]) -> Any:
 
 
 def _assignment(module_path: Path, name: str) -> Any:
-    tree = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+    tree = ast.parse(module_path.read_text(encoding="utf-8-sig"), filename=str(module_path))
     env = dict(EVAL_ENV)
     for node in tree.body:
         if isinstance(node, ast.Assign):
@@ -305,6 +305,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
