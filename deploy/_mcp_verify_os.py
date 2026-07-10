@@ -593,8 +593,14 @@ elif an.get("grammar_id") != "ART_NOUVEAU":
 elif os_styles.get("ART_NOUVEAU", {}).get("gate") != "_lib_OGEE_ARCH":
     print("  !! FAIL: ART_NOUVEAU compose_roles missing")
     all_ok = False
+elif os_styles.get("ART_NOUVEAU", {}).get("corner_tower") != "_lib_PILLAR":
+    print(f"  !! FAIL: ART_NOUVEAU corner_tower tower-ban got {os_styles.get('ART_NOUVEAU', {}).get('corner_tower')}")
+    all_ok = False
+elif an.get("compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+    print(f"  !! FAIL: art_nouveau_v1 corner_tower override={an.get('compose_roles')}")
+    all_ok = False
 else:
-    print("  art_nouveau_v1 + ART_NOUVEAU compose_roles: OK")
+    print("  art_nouveau_v1 + ART_NOUVEAU compose_roles (tower-ban pillar): OK")
 
 ad = os_genome.load_genome("art_deco_lobby_v1")
 if ad.get("compose_style") != "ART_DECO" or os_genome.genome_family(ad) != "ArtDeco":
@@ -622,8 +628,14 @@ elif mc.get("grammar_id") != "MOORISH_COURTYARD":
 elif os_styles.get("MOORISH_COURTYARD", {}).get("gate") != "_lib_ARCHWAY_ADV":
     print("  !! FAIL: MOORISH_COURTYARD compose_roles missing")
     all_ok = False
+elif os_styles.get("MOORISH_COURTYARD", {}).get("corner_tower") != "_lib_PILLAR":
+    print(f"  !! FAIL: MOORISH_COURTYARD corner_tower tower-ban got {os_styles.get('MOORISH_COURTYARD', {}).get('corner_tower')}")
+    all_ok = False
+elif mc.get("compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+    print(f"  !! FAIL: moorish_courtyard_v1 corner_tower override={mc.get('compose_roles')}")
+    all_ok = False
 else:
-    print("  moorish_courtyard_v1 + MOORISH_COURTYARD compose_roles: OK")
+    print("  moorish_courtyard_v1 + MOORISH_COURTYARD compose_roles (tower-ban pillar): OK")
 
 rp = os_genome.load_genome("renaissance_piazza_v1")
 if rp.get("compose_style") != "RENAISSANCE_PIAZZA" or os_genome.genome_family(rp) != "Renaissance":

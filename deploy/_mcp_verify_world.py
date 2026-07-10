@@ -665,6 +665,10 @@ try:
             raise RuntimeError(f"art_nouveau family mismatch: {asg.get('family')}")
         if asg.get("resolved_compose_roles", {}).get("gate") != "_lib_OGEE_ARCH":
             raise RuntimeError("ART_NOUVEAU resolved gate mismatch")
+        if asg.get("resolved_compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+            raise RuntimeError(
+                f"ART_NOUVEAU corner_tower tower-ban mismatch: {asg.get('resolved_compose_roles')}"
+            )
         print("  art_nouveau manifest embed: OK")
     if art_deco_export_root is not None:
         dm = export.build_world_manifest(art_deco_export_root, monolith=s)
@@ -687,6 +691,10 @@ try:
             raise RuntimeError(f"moorish family mismatch: {msg.get('family')}")
         if msg.get("resolved_compose_roles", {}).get("gate") != "_lib_ARCHWAY_ADV":
             raise RuntimeError("MOORISH_COURTYARD resolved gate mismatch")
+        if msg.get("resolved_compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+            raise RuntimeError(
+                f"MOORISH_COURTYARD corner_tower tower-ban mismatch: {msg.get('resolved_compose_roles')}"
+            )
         print("  moorish_courtyard manifest embed: OK")
     if renaissance_export_root is not None:
         rm = export.build_world_manifest(renaissance_export_root, monolith=s)

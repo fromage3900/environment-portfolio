@@ -11,6 +11,9 @@
   "compose_style": "MOORISH_COURTYARD",
   "default_graph": "MOORISH_COURTYARD",
   "grammar_id": "MOORISH_COURTYARD",
+  "compose_roles": {
+    "corner_tower": "_lib_PILLAR"
+  },
   "prop_defaults": {
     "gb_trim_mode": "RECESS",
     "gb_bake_trim_colors": true,

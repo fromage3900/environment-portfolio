@@ -25,6 +25,8 @@ Structured studies live under [`research/`](../research/README.md) — deploy do
 | Shrine axis | `research/zen/02_shrine_axis.md` |
 | Karesansui grammar | `research/zen/03_karesansui_grammar.md` |
 | Surreal transforms | `research/surreal/01_non_euclidean_transforms.md` |
+| Art Nouveau corner markers (tower ban) | `research/art_nouveau/01_corner_markers.md` |
+| Moorish courtyard corner markers (tower ban) | `research/moorish/01_corner_markers.md` |
 
 ### New kits (v2.74)
 

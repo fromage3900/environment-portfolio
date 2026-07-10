@@ -1,5 +1,12 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Art Nouveau / Moorish tower-ban compose polish
+
+- **`ART_NOUVEAU`** + **`MOORISH_COURTYARD`** `corner_tower` remapped `_lib_BELL_TOWER` → `_lib_PILLAR`
+- Genome `compose_roles` overrides + OS/world verify asserts for pillar corner markers
+- Research studies for Art Nouveau + Moorish corner markers (no tower spines)
+- Hygiene: mesoamerican pyramid stub `archway_style` ROUND → ROMAN
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)

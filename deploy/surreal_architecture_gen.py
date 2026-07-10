@@ -24,7 +24,7 @@ bl_info = {
     "blender": (5, 1, 0),
     "author": "Claude Code",
     "description": "Procedural geometry node system for surreal architecture",
-    "version": (2, 131, 0),
+    "version": (2, 132, 0),
     "location": "Properties > Modifiers",
     "category": "Geometry Nodes",
 }

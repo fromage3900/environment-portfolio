@@ -11,6 +11,9 @@
   "compose_style": "ART_NOUVEAU",
   "default_graph": "ART_NOUVEAU",
   "grammar_id": "ART_NOUVEAU",
+  "compose_roles": {
+    "corner_tower": "_lib_PILLAR"
+  },
   "prop_defaults": {
     "gb_trim_mode": "RECESS",
     "gb_bake_trim_colors": true,
