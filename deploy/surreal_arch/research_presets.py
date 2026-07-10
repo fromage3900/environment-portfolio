@@ -370,6 +370,23 @@ RESEARCH_PRESETS = {
             style_genome_id="baroque_church_v1",
         ),
     },
+    "meso_pyramid_courtyard_graph": {
+        "label": "Mesoamerican Pyramid Courtyard",
+        "description": "Battered terrace, ceremonial stair, processional ramp, plaza arcade, stone portal, sacred pool",
+        "research_ref": "research/mesoamerican/01_pyramid_courtyard.md — meso_pyramid_courtyard_v1 + MESOAMERICAN_PYRAMID",
+        "group": "CIVIC",
+        "graph_id": "MESOAMERICAN_PYRAMID",
+        "genome_id": "meso_pyramid_courtyard_v1",
+        "props": dict(
+            arch_type="RETAINING_WALL",
+            wall_segments=4,
+            retaining_steps=5,
+            retaining_batter=0.1,
+            material_choice="STONE",
+            unit_size=1.2,
+            style_genome_id="meso_pyramid_courtyard_v1",
+        ),
+    },
     "romanesque_apse_graph": {
         "label": "Romanesque Choir + Apse",
         "description": "Arcade walk terminating in semicircular apse",

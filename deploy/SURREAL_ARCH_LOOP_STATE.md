@@ -1,8 +1,16 @@
 # Surreal Architecture — Loop State
 
-**Version:** 2.131.0  
+**Version:** 2.132.0  
 **Loop sentinel:** `AGENT_LOOP_TICK_surreal_tierb`  
 **Interval:** 300s — **endless loop armed** (monitored shell, AAA genome expansion prompt)
+
+## Micro-cycle 86 — v2.132.0 (Mesoamerican pyramid courtyard) ✓
+
+- **`meso_pyramid_courtyard_v1`** genome + **`MESOAMERICAN_PYRAMID`** grammar (terrace, stair, ramp, arcade, portal, pool)
+- **`MESOAMERICAN_PYRAMID`** compose style — `corner_tower` → `_lib_PILLAR` (no tower spines)
+- Library bake for `RETAINING_WALL`, `GREYBOX_STAIR_BLOCK`, `GREYBOX_RAMP`; `axis_compression` transform
+- Research preset `meso_pyramid_courtyard_graph` + curated playable preset; catalog **31**
+- Research study: `research/mesoamerican/01_pyramid_courtyard.md`
 
 ## Micro-cycle 53 — genome `family` schema (v2.98.0) ✓
 
@@ -320,9 +328,9 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 
 ## Next loop targets
 
-- Mesoamerican pyramid courtyard (new family)
 - Art Nouveau / Moorish manifest parity audit (compose tests green)
-- Industrial Art Deco hybrid or Streamline Moderne variant
+- Industrial Art Deco hybrid or Streamline Moderne civic facade (horizontal chain)
+- Mesoamerican ballcourt / processional avenue variant
 
 ## Micro-cycle 85 — v2.131.0 (Art Deco lobby set) ✓
 
@@ -330,3 +338,8 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 - **`ART_DECO`** compose style + library bake for **`TESSELLATION_TOWER`**
 - Research preset `art_deco_lobby_graph` + curated playable preset; `vertical_stretch` transform
 - World manifest embed verify; genome catalog **30**
+
+## Micro-cycle 86 — v2.132.0 (Mesoamerican pyramid courtyard) ✓
+
+- Finished stub genome/grammar into full OS set — horizontal civic chain only (no towers/obelisks)
+- Compose + library + research/curated presets + OS/world verify tiers
