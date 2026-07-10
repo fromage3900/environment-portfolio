@@ -301,6 +301,23 @@ RESEARCH_PRESETS = {
             style_genome_id="art_deco_lobby_v1",
         ),
     },
+    "streamline_moderne_graph": {
+        "label": "Streamline Moderne Civic Walk",
+        "description": "Horizontal facade, curved wall, arcade, ramp, balcony ribbon, round portal",
+        "research_ref": "research/streamline/01_civic_facade.md — streamline_moderne_v1 + STREAMLINE_MODERNE",
+        "group": "CIVIC",
+        "graph_id": "STREAMLINE_MODERNE",
+        "genome_id": "streamline_moderne_v1",
+        "props": dict(
+            arch_type="BAROQUE_FACADE",
+            baroque_facade_bays=7,
+            baroque_facade_height=9.0,
+            baroque_order="DORIC",
+            material_choice="AUTO",
+            unit_size=2.0,
+            style_genome_id="streamline_moderne_v1",
+        ),
+    },
     "moorish_courtyard_graph": {
         "label": "Moorish Courtyard Colonnade",
         "description": "Horseshoe portal, arabesque screen, arcade bays, fountain court",

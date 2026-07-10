@@ -1,5 +1,12 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Streamline Moderne civic architecture set
+
+- **`streamline_moderne_v1`** genome + **`STREAMLINE_MODERNE`** grammar chain (6 modules)
+- Horizontal civic walk: facade → curved wall → arcade → ramp → balcony → round portal
+- **`STREAMLINE_MODERNE`** compose style — pillar corner accent (no tower spines); `axis_compression`
+- Research study + graph/curated presets; library bake for **`GREYBOX_RAMP`**; catalog **32**
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)
