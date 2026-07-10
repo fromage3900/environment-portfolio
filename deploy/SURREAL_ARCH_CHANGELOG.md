@@ -1,5 +1,13 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Persian iwan courtyard architecture set
+
+- **`persian_iwan_courtyard_v1`** genome + **`PERSIAN_IWAN`** grammar chain (6 modules: ramp → iwan → arabesque → arcade → hypostyle → fountain)
+- **`PERSIAN_IWAN`** compose style — hypostyle large, arcade medium, `corner_tower` → `_lib_PILLAR` (no tower spines)
+- Research preset `persian_iwan_courtyard_graph` + curated playable preset; `axis_compression` transform
+- World manifest embed verify; genome catalog **32**; study `research/persian/01_iwan_courtyard.md`
+- OS/overhaul verify: sys.path bootstrap for Blender `--factory-startup` on Linux
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)

@@ -15,7 +15,14 @@ print("=== SURREAL WORLD VERIFY v2.69 ===")
 print("Blender", bpy.app.version_string)
 
 DEPLOY = os.path.dirname(os.path.abspath(__file__))
-LIVE = os.path.join(os.environ.get("APPDATA", ""), "Blender Foundation", "Blender", "5.1", "scripts", "addons")
+LIVE = os.path.join(
+    os.environ.get("APPDATA", os.path.expanduser("~/.config")),
+    "Blender Foundation",
+    "Blender",
+    "5.1",
+    "scripts",
+    "addons",
+)
 for p in (DEPLOY, LIVE):
     if p and os.path.isdir(p) and p not in sys.path:
         sys.path.insert(0, p)
@@ -61,6 +68,7 @@ scifi_deck_export_root = None
 scifi_airlock_export_root = None
 scifi_industrial_export_root = None
 zen_pagoda_export_root = None
+persian_iwan_export_root = None
 
 print("\n--- Library init ---")
 try:
@@ -235,6 +243,40 @@ try:
         print("  art_deco_compose: OK")
 except Exception as e:
     print(f"  art_deco compose error: {e}")
+    all_ok = False
+
+print("\n--- Persian iwan courtyard plan compose ---")
+try:
+    from surreal_os import genome as os_genome
+    library.init_library(
+        s,
+        types_only={
+            "GREYBOX_PILLAR_HALL",
+            "GB_ROMANESQUE_ARCADE",
+            "FILIGREE_PANEL",
+            "CURVED_WALL",
+            "PILLAR",
+            "ARCHWAY_ADV",
+            "PUBLIC_FOUNTAIN",
+            "DOME",
+        },
+    )
+    persian_plan = plans.spawn_village_plan(location=(130, 0, 0))
+    s._active_style_genome = os_genome.load_genome("persian_iwan_courtyard_v1")
+    proot, pmsg = compose.compose_world(s, bpy.context, persian_plan, "PERSIAN_IWAN", 0.85, "COLLECTION")
+    persian_iwan_export_root = proot
+    s._active_style_genome = None
+    print(f"  persian_iwan_compose: {pmsg} metrics={verify_hooks.compose_metrics(proot)}")
+    if proot is None:
+        print("  !! FAIL: persian_iwan compose returned None root")
+        all_ok = False
+    elif proot.get("surreal_style_genome_id") != "persian_iwan_courtyard_v1":
+        print(f"  !! FAIL: persian_iwan genome stamp got {proot.get('surreal_style_genome_id')}")
+        all_ok = False
+    else:
+        print("  persian_iwan_compose: OK")
+except Exception as e:
+    print(f"  persian_iwan compose error: {e}")
     all_ok = False
 
 print("\n--- Moorish courtyard plan compose ---")
@@ -816,6 +858,20 @@ try:
         if isg.get("resolved_compose_roles", {}).get("large") != "_lib_GREYBOX_PILLAR_HALL":
             raise RuntimeError("SCIFI industrial resolved large mismatch")
         print("  scifi_industrial_yard manifest embed: OK")
+    if persian_iwan_export_root is not None:
+        pm = export.build_world_manifest(persian_iwan_export_root, monolith=s)
+        psg = pm.get("style_genome") or {}
+        if psg.get("id") != "persian_iwan_courtyard_v1":
+            raise RuntimeError(f"PERSIAN_IWAN style_genome expected persian_iwan_courtyard_v1: {psg}")
+        if psg.get("family") != "Persian":
+            raise RuntimeError(f"persian family mismatch: {psg.get('family')}")
+        if psg.get("surreal_transform") != "axis_compression":
+            raise RuntimeError("PERSIAN_IWAN surreal_transform mismatch")
+        if psg.get("resolved_compose_roles", {}).get("gate") != "_lib_ARCHWAY_ADV":
+            raise RuntimeError("PERSIAN_IWAN resolved gate mismatch")
+        if psg.get("resolved_compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+            raise RuntimeError("PERSIAN_IWAN resolved corner_tower mismatch")
+        print("  persian_iwan manifest embed: OK")
     with tempfile.TemporaryDirectory() as td:
         path = os.path.join(td, "test.world.json")
         export.write_world_manifest(export_root, path, monolith=s)

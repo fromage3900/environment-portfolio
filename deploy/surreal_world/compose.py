@@ -233,6 +233,16 @@ COMPOSE_STYLES = {
         "monument": "_lib_PUBLIC_FOUNTAIN",
         "sacred": "_lib_CHAPEL",
     },
+    "PERSIAN_IWAN": {
+        "large": "_lib_GREYBOX_PILLAR_HALL",
+        "medium": "_lib_GB_ROMANESQUE_ARCADE",
+        "small": "_lib_FILIGREE_PANEL",
+        "wall": "_lib_CURVED_WALL",
+        "corner_tower": "_lib_PILLAR",
+        "gate": "_lib_ARCHWAY_ADV",
+        "monument": "_lib_PUBLIC_FOUNTAIN",
+        "sacred": "_lib_DOME",
+    },
 }
 
 ROLE_MATERIALS = {
@@ -333,6 +343,8 @@ def compose_world(
             world_root["surreal_style_genome_id"] = "baroque_church_v1"
         elif style_key == "BRUTALIST_PLAZA":
             world_root["surreal_style_genome_id"] = "brutalist_plaza_v1"
+        elif style_key == "PERSIAN_IWAN":
+            world_root["surreal_style_genome_id"] = "persian_iwan_courtyard_v1"
         try:
             if world_root not in list(out_coll.objects):
                 out_coll.objects.link(world_root)

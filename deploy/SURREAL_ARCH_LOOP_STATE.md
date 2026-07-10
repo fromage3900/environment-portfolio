@@ -1,6 +1,6 @@
 # Surreal Architecture — Loop State
 
-**Version:** 2.131.0  
+**Version:** 2.132.0  
 **Loop sentinel:** `AGENT_LOOP_TICK_surreal_tierb`  
 **Interval:** 300s — **endless loop armed** (monitored shell, AAA genome expansion prompt)
 
@@ -320,9 +320,17 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 
 ## Next loop targets
 
-- Mesoamerican pyramid courtyard (new family)
-- Art Nouveau / Moorish manifest parity audit (compose tests green)
-- Industrial Art Deco hybrid or Streamline Moderne variant
+- Art Deco lobby tower-ban rematerialize (still has TESSELLATION_TOWER / OBELISK)
+- Mesoamerican pyramid courtyard full wire (stub present) or ballcourt variant
+- Streamline Moderne / Industrial Art Deco hybrid
+- Art Nouveau / Moorish `corner_tower` → PILLAR sweep
+
+## Micro-cycle 86 — v2.132.0 (Persian iwan courtyard set) ✓
+
+- **`persian_iwan_courtyard_v1`** genome + **`PERSIAN_IWAN`** grammar (ramp, pointed iwan, arabesque, riwaq arcade, hypostyle, fountain)
+- **`PERSIAN_IWAN`** compose style — `corner_tower` → `_lib_PILLAR` (tower-ban); `axis_compression`
+- Research preset `persian_iwan_courtyard_graph` + curated playable preset
+- World manifest embed verify; genome catalog **32**; research study `research/persian/01_iwan_courtyard.md`
 
 ## Micro-cycle 85 — v2.131.0 (Art Deco lobby set) ✓
 

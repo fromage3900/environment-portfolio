@@ -1,0 +1,14 @@
+{
+  "id": "PERSIAN_IWAN",
+  "label": "Persian Iwan Courtyard",
+  "description": "Processional ramp, pointed iwan portal, arabesque screen, riwaq arcade, hypostyle hall, fountain sahn",
+  "style": "persian",
+  "modules": [
+    {"arch_type": "GREYBOX_RAMP", "overrides": {"gb_length": 8.0, "gb_width": 3.2, "gb_rise": 1.4, "material_choice": "STONE"}},
+    {"arch_type": "ARCHWAY_ADV", "overrides": {"archway_style": "GOTHIC", "archway_width": 3.2, "archway_height": 4.8, "archway_depth": 1.8, "material_choice": "STONE"}},
+    {"arch_type": "FILIGREE_PANEL", "overrides": {"filigree_style": "GEOMETRIC_ARABESQUE", "filigree_width": 1.8, "filigree_height": 2.4, "filigree_density": 0.78, "material_choice": "AUTO"}},
+    {"arch_type": "GB_ROMANESQUE_ARCADE", "overrides": {"gb_width": 3.2, "gb_height": 4.2, "gb_trim_mode": "RECESS", "unit_size": 3.2, "material_choice": "STONE"}},
+    {"arch_type": "GREYBOX_PILLAR_HALL", "overrides": {"gb_cols_x": 4, "gb_cols_y": 3, "gb_spacing": 3.6, "gb_height": 4.0, "gb_trim_mode": "RECESS", "material_choice": "STONE", "unit_size": 3.6}},
+    {"arch_type": "PUBLIC_FOUNTAIN", "overrides": {"fountain_radius": 1.6, "fountain_tiers": 2, "material_choice": "MARBLE"}}
+  ]
+}
