@@ -79,6 +79,7 @@ SURREAL_LIBRARY_SPEC = {
     "GREYBOX_CATWALK": {"gb_length": 10.0, "gb_width": 1.6, "gb_rail_height": 1.0, "material_choice": "AUTO"},
     "GREYBOX_PILLAR_HALL": {"gb_cols_x": 3, "gb_cols_y": 2, "gb_spacing": 4.0, "gb_height": 4.0, "gb_trim_mode": "RECESS", "unit_size": 4.0},
     "GB_BRUTALIST_PANEL_WALL": {"gb_length": 12.0, "gb_height": 3.6, "gb_trim_mode": "RECESS", "gb_trim_recess": 0.08, "material_choice": "STONE"},
+    "GREYBOX_RAMP": {"gb_length": 10.0, "gb_width": 3.2, "gb_rise": 2.8, "material_choice": "AUTO"},
     "GB_SCIFI_PRESSURE_DOOR": {"gb_length": 3.5, "gb_door_width": 1.4, "gb_trim_mode": "RECESS"},
     "CUSPED_ARCH": {"gothic_width": 2.4, "gb_height": 4.0, "gb_trim_mode": "RECESS", "material_choice": "MARBLE"},
     "ROSE_WINDOW": {"rose_outer_radius": 1.5, "rose_petal_count": 12, "rose_spoke_count": 12, "material_choice": "STAINED"},
