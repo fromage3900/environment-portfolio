@@ -1,5 +1,12 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Art Deco lobby tower-ban rematerialize
+
+- **`ART_DECO`** grammar — facade / panel / filigree / portal / balcony / ramp promenade (no tower spines)
+- Compose roles remapped: BAROQUE_FACADE large, PILLAR corner_tower, PUBLIC_FOUNTAIN monument
+- Genome `axis_compression` + compose role overrides; `GREYBOX_RAMP` library bake
+- Research study + preset retarget; OS/world verify banned-arch + corner_tower asserts
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)
