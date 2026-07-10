@@ -16,3 +16,7 @@ Before implementing a new generator kit, fill `_template_node_design.md` and lin
 ## Pilot style
 
 **Zen / Japanese** — first full Style Genome (`zen_shrine_v1`).
+
+## Additional families
+
+- **Mesoamerican** — `research/mesoamerican/01_pyramid_courtyard.md` → `meso_pyramid_courtyard_v1` / `MESOAMERICAN_PYRAMID`
