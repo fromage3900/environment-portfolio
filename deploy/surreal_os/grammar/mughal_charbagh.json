@@ -1,0 +1,14 @@
+{
+  "id": "MUGHAL_CHARBAGH",
+  "label": "Mughal Charbagh Court",
+  "description": "Horseshoe portal, water-channel corridor, arcade colonnade, terrace ramp, ceremonial stair, central hauz fountain",
+  "style": "mughal",
+  "modules": [
+    {"arch_type": "ARCHWAY_ADV", "overrides": {"archway_style": "HORSESHOE", "archway_width": 2.6, "archway_height": 2.4, "archway_depth": 0.55, "material_choice": "STONE"}},
+    {"arch_type": "GREYBOX_CORRIDOR", "overrides": {"gb_length": 10.0, "gb_corridor_profile": "DOUBLE", "gb_height": 3.2, "gb_trim_mode": "RECESS", "material_choice": "STONE", "unit_size": 3.2}},
+    {"arch_type": "GB_ROMANESQUE_ARCADE", "overrides": {"gb_width": 3.2, "gb_height": 4.0, "gb_trim_mode": "RECESS", "unit_size": 3.2, "material_choice": "MARBLE"}},
+    {"arch_type": "GREYBOX_RAMP", "overrides": {"gb_length": 6.0, "gb_width": 2.4, "gb_rise": 1.2, "material_choice": "STONE", "unit_size": 2.4}},
+    {"arch_type": "GREYBOX_STAIR_BLOCK", "overrides": {"gb_steps": 10, "gb_rise": 0.2, "gb_run": 0.3, "gb_width": 2.6, "material_choice": "STONE", "unit_size": 2.0}},
+    {"arch_type": "PUBLIC_FOUNTAIN", "overrides": {"fountain_radius": 1.6, "fountain_tiers": 3, "material_choice": "MARBLE"}}
+  ]
+}

@@ -49,6 +49,7 @@ art_nouveau_export_root = None
 art_deco_export_root = None
 moorish_export_root = None
 renaissance_export_root = None
+mughal_export_root = None
 byzantine_export_root = None
 baroque_export_root = None
 venetian_export_root = None
@@ -271,6 +272,35 @@ try:
         print("  renaissance_compose: OK")
 except Exception as e:
     print(f"  renaissance compose error: {e}")
+    all_ok = False
+
+print("\n--- Mughal charbagh plan compose ---")
+try:
+    from surreal_os import genome as os_genome
+    library.init_library(
+        s,
+        types_only={
+            "BAROQUE_FACADE",
+            "GB_ROMANESQUE_ARCADE",
+            "PILLAR",
+            "ARCHWAY_ADV",
+            "PUBLIC_FOUNTAIN",
+            "DOME",
+        },
+    )
+    mug_plan = plans.spawn_village_plan(location=(145, 0, 0))
+    s._active_style_genome = os_genome.load_genome("mughal_charbagh_v1")
+    mugroot, mugmsg = compose.compose_world(s, bpy.context, mug_plan, "MUGHAL_CHARBAGH", 0.85, "COLLECTION")
+    mughal_export_root = mugroot
+    s._active_style_genome = None
+    print(f"  mughal_compose: {mugmsg} metrics={verify_hooks.compose_metrics(mugroot)}")
+    if mugroot.get("surreal_style_genome_id") != "mughal_charbagh_v1":
+        print(f"  !! FAIL: mughal genome stamp got {mugroot.get('surreal_style_genome_id')}")
+        all_ok = False
+    else:
+        print("  mughal_compose: OK")
+except Exception as e:
+    print(f"  mughal compose error: {e}")
     all_ok = False
 
 print("\n--- Byzantine basilica plan compose ---")
@@ -698,6 +728,20 @@ try:
         if rsg.get("resolved_compose_roles", {}).get("sacred") != "_lib_DOME":
             raise RuntimeError("RENAISSANCE_PIAZZA resolved sacred mismatch")
         print("  renaissance_piazza manifest embed: OK")
+    if mughal_export_root is not None:
+        mm = export.build_world_manifest(mughal_export_root, monolith=s)
+        msg = mm.get("style_genome") or {}
+        if msg.get("id") != "mughal_charbagh_v1":
+            raise RuntimeError(f"MUGHAL_CHARBAGH style_genome expected mughal_charbagh_v1: {msg}")
+        if msg.get("family") != "Mughal":
+            raise RuntimeError(f"mughal family mismatch: {msg.get('family')}")
+        if msg.get("surreal_transform") != "axis_compression":
+            raise RuntimeError("MUGHAL_CHARBAGH surreal_transform mismatch")
+        if msg.get("resolved_compose_roles", {}).get("gate") != "_lib_ARCHWAY_ADV":
+            raise RuntimeError("MUGHAL_CHARBAGH resolved gate mismatch")
+        if msg.get("resolved_compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+            raise RuntimeError("MUGHAL_CHARBAGH corner_tower must be PILLAR")
+        print("  mughal_charbagh manifest embed: OK")
     if byzantine_export_root is not None:
         bm = export.build_world_manifest(byzantine_export_root, monolith=s)
         bsg = bm.get("style_genome") or {}

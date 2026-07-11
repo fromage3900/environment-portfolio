@@ -3,6 +3,7 @@
 Launch with --factory-startup:
   blender --background --factory-startup --python deploy/_mcp_verify_os.py
 """
+import importlib
 import json
 import os
 import sys
@@ -10,19 +11,31 @@ import sys
 import bpy
 
 print("=== SURREAL OS VERIFY ===")
+print("Blender", bpy.app.version_string)
 
 DEPLOY = os.path.dirname(os.path.abspath(__file__))
-if DEPLOY not in sys.path:
-    sys.path.insert(0, DEPLOY)
+LIVE = os.path.join(os.environ.get("APPDATA", ""), "Blender Foundation", "Blender", "5.1", "scripts", "addons")
+for p in (DEPLOY, LIVE):
+    if p and os.path.isdir(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
-s = sys.modules.get("surreal_architecture_gen")
-if s is None:
-    if "surreal_architecture_gen" not in bpy.context.preferences.addons:
-        bpy.ops.preferences.addon_enable(module="surreal_architecture_gen")
-    s = sys.modules.get("surreal_architecture_gen")
-if s is None:
-    print("  !! FAIL: surreal_architecture_gen not loaded")
-    raise SystemExit(1)
+if "surreal_architecture_gen" in bpy.context.preferences.addons:
+    bpy.ops.preferences.addon_disable(module="surreal_architecture_gen")
+
+import surreal_architecture_gen as s
+
+importlib.reload(s)
+if not hasattr(bpy.types.Object, "surreal_arch_props"):
+    s.register()
+
+try:
+    import surreal_arch.integration as _integration
+
+    importlib.reload(_integration)
+    _integration.patch_monolith(s)
+except Exception as e:
+    print(f"Patch monolith skipped: {e}")
+
 if not getattr(s, "_surreal_patched", False):
     print("  !! FAIL: monolith patch (_surreal_patched) not applied")
     raise SystemExit(1)
@@ -47,7 +60,7 @@ from surreal_arch.greybox_graph import GRAPH_REGISTRY
 
 merged = merge_grammar_into_registry(GRAPH_REGISTRY)
 print(f"  merged_into_registry: {merged}")
-for gid in ("ZEN_SHRINE_AXIS", "ZEN_SAKURA_WALK", "ZEN_SHRINE_COURTYARD", "ZEN_ROJI_PATH", "ZEN_KARESANSHUI_WALK", "ZEN_TEA_GARDEN", "ZEN_STREAM_GARDEN", "ZEN_PAGODA_SPIRE", "ZEN_KAIRO_ENCLOSURE", "CLOISTER", "GOTHIC_CHAPTER_HOUSE", "GOTHIC_NAVE_CROSSING", "SCIFI_AIRLOCK", "SCI_FI_DECK", "ROMANESQUE_CLOISTER", "VENETIAN_CANAL", "ROMANESQUE_APSE", "SCI_FI_DECK_EXPANSION", "SCI_FI_INDUSTRIAL_YARD", "ASIAN_CITY", "ASIAN_CITY_RECURSIVE", "BRUTALIST_PLAZA", "ART_NOUVEAU", "ART_DECO", "MOORISH_COURTYARD", "RENAISSANCE_PIAZZA", "BYZANTINE_BASILICA", "BAROQUE_CHURCH"):
+for gid in ("ZEN_SHRINE_AXIS", "ZEN_SAKURA_WALK", "ZEN_SHRINE_COURTYARD", "ZEN_ROJI_PATH", "ZEN_KARESANSHUI_WALK", "ZEN_TEA_GARDEN", "ZEN_STREAM_GARDEN", "ZEN_PAGODA_SPIRE", "ZEN_KAIRO_ENCLOSURE", "CLOISTER", "GOTHIC_CHAPTER_HOUSE", "GOTHIC_NAVE_CROSSING", "SCIFI_AIRLOCK", "SCI_FI_DECK", "ROMANESQUE_CLOISTER", "VENETIAN_CANAL", "ROMANESQUE_APSE", "SCI_FI_DECK_EXPANSION", "SCI_FI_INDUSTRIAL_YARD", "ASIAN_CITY", "ASIAN_CITY_RECURSIVE", "BRUTALIST_PLAZA", "ART_NOUVEAU", "ART_DECO", "MOORISH_COURTYARD", "RENAISSANCE_PIAZZA", "BYZANTINE_BASILICA", "BAROQUE_CHURCH", "MUGHAL_CHARBAGH"):
     if gid not in GRAPH_REGISTRY:
         print(f"  !! FAIL: {gid} not in GRAPH_REGISTRY")
         all_ok = False
@@ -205,8 +218,8 @@ else:
     print("  scifi_industrial_yard_v1: OK")
 
 genome_ids = os_genome.list_genomes()
-if len(genome_ids) < 29:
-    print(f"  !! FAIL: expected >=29 genomes got {len(genome_ids)}")
+if len(genome_ids) < 31:
+    print(f"  !! FAIL: expected >=31 genomes got {len(genome_ids)}")
     all_ok = False
 else:
     print(f"  genome catalog: {len(genome_ids)} entries")
@@ -288,6 +301,19 @@ try:
     if len(ren_objs) < 2:
         print(f"  !! FAIL: RENAISSANCE_PIAZZA spawn got {len(ren_objs)}")
         all_ok = False
+    mughal_spec = GRAPH_REGISTRY["MUGHAL_CHARBAGH"]["spec"]
+    mughal_objs = spawn_graph(bpy.context, s, mughal_spec[:3], spacing=10.0, graph_id="MUGHAL_CHARBAGH")
+    print(f"  spawn_graph MUGHAL_CHARBAGH partial: {len(mughal_objs)} objects")
+    if len(mughal_objs) < 2:
+        print(f"  !! FAIL: MUGHAL_CHARBAGH spawn got {len(mughal_objs)}")
+        all_ok = False
+    banned = {"TOWER", "TESSELLATION_TOWER", "BELL_TOWER", "WATCHTOWER", "OBELISK", "KEEP"}
+    mughal_types = {at for at, _ in mughal_spec}
+    if banned & mughal_types:
+        print(f"  !! FAIL: MUGHAL_CHARBAGH banned arch types: {banned & mughal_types}")
+        all_ok = False
+    else:
+        print("  MUGHAL_CHARBAGH tower-ban: OK")
     byz_spec = GRAPH_REGISTRY["BYZANTINE_BASILICA"]["spec"]
     byz_objs = spawn_graph(bpy.context, s, byz_spec[:4], spacing=11.0, graph_id="BYZANTINE_BASILICA")
     print(f"  spawn_graph BYZANTINE_BASILICA partial: {len(byz_objs)} objects")
@@ -637,6 +663,25 @@ elif os_styles.get("RENAISSANCE_PIAZZA", {}).get("sacred") != "_lib_DOME":
     all_ok = False
 else:
     print("  renaissance_piazza_v1 + RENAISSANCE_PIAZZA compose_roles: OK")
+
+mg = os_genome.load_genome("mughal_charbagh_v1")
+if mg.get("compose_style") != "MUGHAL_CHARBAGH" or os_genome.genome_family(mg) != "Mughal":
+    print(f"  !! FAIL: mughal_charbagh_v1 compose/family")
+    all_ok = False
+elif mg.get("grammar_id") != "MUGHAL_CHARBAGH":
+    print(f"  !! FAIL: mughal_charbagh_v1 grammar={mg.get('grammar_id')}")
+    all_ok = False
+elif mg.get("surreal_transform") != "axis_compression":
+    print(f"  !! FAIL: mughal_charbagh_v1 transform={mg.get('surreal_transform')}")
+    all_ok = False
+elif os_styles.get("MUGHAL_CHARBAGH", {}).get("corner_tower") != "_lib_PILLAR":
+    print("  !! FAIL: MUGHAL_CHARBAGH corner_tower must be PILLAR")
+    all_ok = False
+elif os_styles.get("MUGHAL_CHARBAGH", {}).get("gate") != "_lib_ARCHWAY_ADV":
+    print("  !! FAIL: MUGHAL_CHARBAGH compose_roles missing")
+    all_ok = False
+else:
+    print("  mughal_charbagh_v1 + MUGHAL_CHARBAGH compose_roles: OK")
 
 bb = os_genome.load_genome("byzantine_basilica_v1")
 if bb.get("grammar_id") != "BYZANTINE_BASILICA" or bb.get("compose_style") != "BYZANTINE_BASILICA":

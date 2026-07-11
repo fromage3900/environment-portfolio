@@ -24,7 +24,7 @@ bl_info = {
     "blender": (5, 1, 0),
     "author": "Claude Code",
     "description": "Procedural geometry node system for surreal architecture",
-    "version": (2, 131, 0),
+    "version": (2, 132, 0),
     "location": "Properties > Modifiers",
     "category": "Geometry Nodes",
 }
@@ -28276,6 +28276,13 @@ SURREAL_ARCH_OT_preset_renaissance_piazza = _make_graph_preset_op(
     description="Baroque facade, arcade colonnade, balustrade, fountain, dome",
 )
 
+SURREAL_ARCH_OT_preset_mughal_charbagh = _make_graph_preset_op(
+    "SURREAL_ARCH_OT_preset_mughal_charbagh",
+    "surreal_arch.preset_mughal_charbagh", "Mughal Charbagh Court",
+    "mughal_charbagh_graph",
+    description="Horseshoe portal, water-channel corridor, arcade, ramp, stair, hauz fountain",
+)
+
 SURREAL_ARCH_OT_preset_byzantine_basilica = _make_graph_preset_op(
     "SURREAL_ARCH_OT_preset_byzantine_basilica",
     "surreal_arch.preset_byzantine_basilica", "Byzantine Basilica",
@@ -28556,6 +28563,11 @@ _ARCH_PRESETS = {
         'group': 'CIVIC', 'label': '🏛 Renaissance Piazza',
         'desc': 'RENAISSANCE_PIAZZA graph — facade, arcade, balustrade, fountain, dome',
         'op_id': 'surreal_arch.preset_renaissance_piazza',
+    },
+    'MUGHAL_CHARBAGH': {
+        'group': 'CIVIC', 'label': '🌿 Mughal Charbagh',
+        'desc': 'MUGHAL_CHARBAGH graph — portal, channel corridor, arcade, ramp, stair, hauz',
+        'op_id': 'surreal_arch.preset_mughal_charbagh',
     },
     'BYZANTINE_BASILICA': {
         'group': 'CIVIC', 'label': '⛪ Byzantine Basilica',
@@ -38070,6 +38082,7 @@ classes = (
     SURREAL_ARCH_OT_preset_art_nouveau_facade,
     SURREAL_ARCH_OT_preset_art_deco_lobby,
     SURREAL_ARCH_OT_preset_renaissance_piazza,
+    SURREAL_ARCH_OT_preset_mughal_charbagh,
     SURREAL_ARCH_OT_preset_byzantine_basilica,
     SURREAL_ARCH_OT_preset_baroque_church,
     SURREAL_ARCH_OT_preset_zen_stream_garden,

@@ -335,6 +335,23 @@ RESEARCH_PRESETS = {
             style_genome_id="renaissance_piazza_v1",
         ),
     },
+    "mughal_charbagh_graph": {
+        "label": "Mughal Charbagh Court",
+        "description": "Horseshoe portal, water-channel corridor, arcade, ramp, stair, hauz fountain",
+        "research_ref": "Mughal charbagh typology — mughal_charbagh_v1 + MUGHAL_CHARBAGH graph",
+        "group": "CIVIC",
+        "graph_id": "MUGHAL_CHARBAGH",
+        "genome_id": "mughal_charbagh_v1",
+        "props": dict(
+            arch_type="ARCHWAY_ADV",
+            archway_style="HORSESHOE",
+            archway_width=2.6,
+            archway_height=2.4,
+            material_choice="STONE",
+            unit_size=2.0,
+            style_genome_id="mughal_charbagh_v1",
+        ),
+    },
     "byzantine_basilica_graph": {
         "label": "Byzantine Basilica",
         "description": "Horseshoe narthex, cusped arch, vault nave, rose window, crossing dome",

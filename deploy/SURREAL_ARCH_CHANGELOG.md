@@ -1,5 +1,15 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Mughal charbagh architecture set
+
+- **`mughal_charbagh_v1`** genome + **`MUGHAL_CHARBAGH`** grammar chain (6 modules)
+- **`MUGHAL_CHARBAGH`** compose style — horseshoe gate, arcade medium, pillar corner, dome sacred
+- Research preset `mughal_charbagh_graph` + curated playable preset; `axis_compression` transform
+- Tower-ban: no TOWER/OBELISK/KEEP in grammar; `corner_tower` → `_lib_PILLAR`
+- Mesoamerican stub hygiene: `ARCHWAY_ADV` style ROUND→ROMAN
+- OS/overhaul verify bootstrap mirrors world (factory-startup sys.path import)
+- World manifest embed verify; genome catalog **32**
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)
