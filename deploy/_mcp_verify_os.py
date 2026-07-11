@@ -3,6 +3,7 @@
 Launch with --factory-startup:
   blender --background --factory-startup --python deploy/_mcp_verify_os.py
 """
+import importlib
 import json
 import os
 import sys
@@ -12,17 +13,28 @@ import bpy
 print("=== SURREAL OS VERIFY ===")
 
 DEPLOY = os.path.dirname(os.path.abspath(__file__))
-if DEPLOY not in sys.path:
-    sys.path.insert(0, DEPLOY)
+LIVE = os.path.join(os.environ.get("APPDATA", ""), "Blender Foundation", "Blender", "5.1", "scripts", "addons")
+for p in (DEPLOY, LIVE):
+    if p and os.path.isdir(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
-s = sys.modules.get("surreal_architecture_gen")
-if s is None:
-    if "surreal_architecture_gen" not in bpy.context.preferences.addons:
-        bpy.ops.preferences.addon_enable(module="surreal_architecture_gen")
-    s = sys.modules.get("surreal_architecture_gen")
-if s is None:
-    print("  !! FAIL: surreal_architecture_gen not loaded")
-    raise SystemExit(1)
+if "surreal_architecture_gen" in bpy.context.preferences.addons:
+    bpy.ops.preferences.addon_disable(module="surreal_architecture_gen")
+
+import surreal_architecture_gen as s
+
+importlib.reload(s)
+if not hasattr(bpy.types.Object, "surreal_arch_props"):
+    s.register()
+
+try:
+    import surreal_arch.integration as _integration
+
+    importlib.reload(_integration)
+    _integration.patch_monolith(s)
+except Exception as e:
+    print(f"Patch monolith skipped: {e}")
+
 if not getattr(s, "_surreal_patched", False):
     print("  !! FAIL: monolith patch (_surreal_patched) not applied")
     raise SystemExit(1)
@@ -47,7 +59,7 @@ from surreal_arch.greybox_graph import GRAPH_REGISTRY
 
 merged = merge_grammar_into_registry(GRAPH_REGISTRY)
 print(f"  merged_into_registry: {merged}")
-for gid in ("ZEN_SHRINE_AXIS", "ZEN_SAKURA_WALK", "ZEN_SHRINE_COURTYARD", "ZEN_ROJI_PATH", "ZEN_KARESANSHUI_WALK", "ZEN_TEA_GARDEN", "ZEN_STREAM_GARDEN", "ZEN_PAGODA_SPIRE", "ZEN_KAIRO_ENCLOSURE", "CLOISTER", "GOTHIC_CHAPTER_HOUSE", "GOTHIC_NAVE_CROSSING", "SCIFI_AIRLOCK", "SCI_FI_DECK", "ROMANESQUE_CLOISTER", "VENETIAN_CANAL", "ROMANESQUE_APSE", "SCI_FI_DECK_EXPANSION", "SCI_FI_INDUSTRIAL_YARD", "ASIAN_CITY", "ASIAN_CITY_RECURSIVE", "BRUTALIST_PLAZA", "ART_NOUVEAU", "ART_DECO", "MOORISH_COURTYARD", "RENAISSANCE_PIAZZA", "BYZANTINE_BASILICA", "BAROQUE_CHURCH"):
+for gid in ("ZEN_SHRINE_AXIS", "ZEN_SAKURA_WALK", "ZEN_SHRINE_COURTYARD", "ZEN_ROJI_PATH", "ZEN_KARESANSHUI_WALK", "ZEN_TEA_GARDEN", "ZEN_STREAM_GARDEN", "ZEN_PAGODA_SPIRE", "ZEN_KAIRO_ENCLOSURE", "CLOISTER", "GOTHIC_CHAPTER_HOUSE", "GOTHIC_NAVE_CROSSING", "SCIFI_AIRLOCK", "SCI_FI_DECK", "ROMANESQUE_CLOISTER", "VENETIAN_CANAL", "ROMANESQUE_APSE", "SCI_FI_DECK_EXPANSION", "SCI_FI_INDUSTRIAL_YARD", "ASIAN_CITY", "ASIAN_CITY_RECURSIVE", "BRUTALIST_PLAZA", "ART_NOUVEAU", "ART_DECO", "MOORISH_COURTYARD", "RENAISSANCE_PIAZZA", "BYZANTINE_BASILICA", "BAROQUE_CHURCH", "INCA_TERRACE"):
     if gid not in GRAPH_REGISTRY:
         print(f"  !! FAIL: {gid} not in GRAPH_REGISTRY")
         all_ok = False
@@ -205,8 +217,8 @@ else:
     print("  scifi_industrial_yard_v1: OK")
 
 genome_ids = os_genome.list_genomes()
-if len(genome_ids) < 29:
-    print(f"  !! FAIL: expected >=29 genomes got {len(genome_ids)}")
+if len(genome_ids) < 30:
+    print(f"  !! FAIL: expected >=30 genomes got {len(genome_ids)}")
     all_ok = False
 else:
     print(f"  genome catalog: {len(genome_ids)} entries")
@@ -287,6 +299,19 @@ try:
     print(f"  spawn_graph RENAISSANCE_PIAZZA partial: {len(ren_objs)} objects")
     if len(ren_objs) < 2:
         print(f"  !! FAIL: RENAISSANCE_PIAZZA spawn got {len(ren_objs)}")
+        all_ok = False
+    inca_spec = GRAPH_REGISTRY["INCA_TERRACE"]["spec"]
+    banned = {"TOWER", "TESSELLATION_TOWER", "BELL_TOWER", "WATCHTOWER", "OBELISK", "KEEP"}
+    inca_types = {row[0] if isinstance(row, (list, tuple)) else row.get("arch_type") for row in inca_spec}
+    if banned & inca_types:
+        print(f"  !! FAIL: INCA_TERRACE banned arch types: {banned & inca_types}")
+        all_ok = False
+    else:
+        print("  INCA_TERRACE tower-ban: OK")
+    inca_objs = spawn_graph(bpy.context, s, inca_spec[:3], spacing=10.0, graph_id="INCA_TERRACE")
+    print(f"  spawn_graph INCA_TERRACE partial: {len(inca_objs)} objects")
+    if len(inca_objs) < 2:
+        print(f"  !! FAIL: INCA_TERRACE spawn got {len(inca_objs)}")
         all_ok = False
     byz_spec = GRAPH_REGISTRY["BYZANTINE_BASILICA"]["spec"]
     byz_objs = spawn_graph(bpy.context, s, byz_spec[:4], spacing=11.0, graph_id="BYZANTINE_BASILICA")
@@ -404,11 +429,14 @@ if not xf:
 elif "BRUTALIST_PLAZA" not in (xf.get("applies_to") or []):
     print("  !! FAIL: axis_compression missing BRUTALIST_PLAZA")
     all_ok = False
+elif "INCA_TERRACE" not in (xf.get("applies_to") or []):
+    print("  !! FAIL: axis_compression missing INCA_TERRACE")
+    all_ok = False
 elif "ZEN_STREAM_GARDEN" not in (xf.get("applies_to") or []):
     print("  !! FAIL: axis_compression missing ZEN_STREAM_GARDEN")
     all_ok = False
 else:
-    print(f"  axis_compression type={xf.get('type')} BRUTALIST_PLAZA: OK")
+    print(f"  axis_compression type={xf.get('type')} BRUTALIST_PLAZA+INCA_TERRACE: OK")
 
 xf2 = get_transform("vertical_stretch")
 if not xf2:
@@ -676,6 +704,25 @@ elif os_styles.get("VENETIAN_CANAL", {}).get("medium") != "_lib_GB_VENETIAN_LOGG
     all_ok = False
 else:
     print("  venetian_canal_v1 + VENETIAN_CANAL compose_roles: OK")
+
+inca = os_genome.load_genome("inca_terrace_v1")
+if inca.get("compose_style") != "INCA_TERRACE" or os_genome.genome_family(inca) != "Inca":
+    print(f"  !! FAIL: inca_terrace_v1 compose/family")
+    all_ok = False
+elif inca.get("grammar_id") != "INCA_TERRACE":
+    print(f"  !! FAIL: inca_terrace_v1 grammar={inca.get('grammar_id')}")
+    all_ok = False
+elif inca.get("surreal_transform") != "axis_compression":
+    print(f"  !! FAIL: inca_terrace_v1 transform={inca.get('surreal_transform')}")
+    all_ok = False
+elif os_styles.get("INCA_TERRACE", {}).get("gate") != "_lib_ARCHWAY_ADV":
+    print("  !! FAIL: INCA_TERRACE compose_roles missing")
+    all_ok = False
+elif os_styles.get("INCA_TERRACE", {}).get("corner_tower") != "_lib_PILLAR":
+    print("  !! FAIL: INCA_TERRACE corner_tower must be PILLAR (tower ban)")
+    all_ok = False
+else:
+    print("  inca_terrace_v1 + INCA_TERRACE compose_roles: OK")
 
 if all_ok:
     print("\n=== OS VERIFY OK ===")

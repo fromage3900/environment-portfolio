@@ -335,6 +335,23 @@ RESEARCH_PRESETS = {
             style_genome_id="renaissance_piazza_v1",
         ),
     },
+    "inca_terrace_graph": {
+        "label": "Inca Terrace Procession",
+        "description": "Andenes retaining face, processional ramp, ceremonial stair, arcade, lintel portal, fountain",
+        "research_ref": "research/inca/01_terrace_procession.md — inca_terrace_v1 + INCA_TERRACE graph",
+        "group": "CIVIC",
+        "graph_id": "INCA_TERRACE",
+        "genome_id": "inca_terrace_v1",
+        "props": dict(
+            arch_type="RETAINING_WALL",
+            wall_segments=5,
+            retaining_steps=4,
+            retaining_batter=0.1,
+            material_choice="STONE",
+            unit_size=1.2,
+            style_genome_id="inca_terrace_v1",
+        ),
+    },
     "byzantine_basilica_graph": {
         "label": "Byzantine Basilica",
         "description": "Horseshoe narthex, cusped arch, vault nave, rose window, crossing dome",

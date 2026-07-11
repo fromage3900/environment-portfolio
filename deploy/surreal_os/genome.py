@@ -56,6 +56,10 @@ def genome_family(genome: dict) -> str:
         return "Moorish"
     if gid.startswith("renaissance_"):
         return "Renaissance"
+    if gid.startswith("inca_"):
+        return "Inca"
+    if gid.startswith("meso_"):
+        return "Mesoamerican"
     return "Other"
 
 
@@ -187,6 +191,8 @@ def resolve_genome_manifest(monolith, style_key: str, genome_id: str | None = No
         gid = "byzantine_basilica_v1"
     if not gid and style_key == "BAROQUE_CHURCH":
         gid = "baroque_church_v1"
+    if not gid and style_key == "INCA_TERRACE":
+        gid = "inca_terrace_v1"
     if gid:
         try:
             return build_genome_manifest(load_genome(gid))

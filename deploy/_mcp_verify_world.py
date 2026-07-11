@@ -61,6 +61,7 @@ scifi_deck_export_root = None
 scifi_airlock_export_root = None
 scifi_industrial_export_root = None
 zen_pagoda_export_root = None
+inca_terrace_export_root = None
 
 print("\n--- Library init ---")
 try:
@@ -271,6 +272,36 @@ try:
         print("  renaissance_compose: OK")
 except Exception as e:
     print(f"  renaissance compose error: {e}")
+    all_ok = False
+
+print("\n--- Inca terrace plan compose ---")
+try:
+    from surreal_os import genome as os_genome
+    library.init_library(
+        s,
+        types_only={
+            "RETAINING_WALL",
+            "GREYBOX_RAMP",
+            "GREYBOX_STAIR_BLOCK",
+            "GB_ROMANESQUE_ARCADE",
+            "ARCHWAY_ADV",
+            "PUBLIC_FOUNTAIN",
+            "PILLAR",
+        },
+    )
+    inca_plan = plans.spawn_village_plan(location=(145, 0, 0))
+    s._active_style_genome = os_genome.load_genome("inca_terrace_v1")
+    iroot, imsg = compose.compose_world(s, bpy.context, inca_plan, "INCA_TERRACE", 0.85, "COLLECTION")
+    inca_terrace_export_root = iroot
+    s._active_style_genome = None
+    print(f"  inca_terrace_compose: {imsg} metrics={verify_hooks.compose_metrics(iroot)}")
+    if iroot.get("surreal_style_genome_id") != "inca_terrace_v1":
+        print(f"  !! FAIL: inca genome stamp got {iroot.get('surreal_style_genome_id')}")
+        all_ok = False
+    else:
+        print("  inca_terrace_compose: OK")
+except Exception as e:
+    print(f"  inca_terrace compose error: {e}")
     all_ok = False
 
 print("\n--- Byzantine basilica plan compose ---")
@@ -698,6 +729,20 @@ try:
         if rsg.get("resolved_compose_roles", {}).get("sacred") != "_lib_DOME":
             raise RuntimeError("RENAISSANCE_PIAZZA resolved sacred mismatch")
         print("  renaissance_piazza manifest embed: OK")
+    if inca_terrace_export_root is not None:
+        im = export.build_world_manifest(inca_terrace_export_root, monolith=s)
+        isg = im.get("style_genome") or {}
+        if isg.get("id") != "inca_terrace_v1":
+            raise RuntimeError(f"INCA_TERRACE style_genome expected inca_terrace_v1: {isg}")
+        if isg.get("family") != "Inca":
+            raise RuntimeError(f"inca family mismatch: {isg.get('family')}")
+        if isg.get("surreal_transform") != "axis_compression":
+            raise RuntimeError("INCA_TERRACE surreal_transform mismatch")
+        if isg.get("resolved_compose_roles", {}).get("gate") != "_lib_ARCHWAY_ADV":
+            raise RuntimeError("INCA_TERRACE resolved gate mismatch")
+        if isg.get("resolved_compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+            raise RuntimeError("INCA_TERRACE corner_tower must be PILLAR")
+        print("  inca_terrace manifest embed: OK")
     if byzantine_export_root is not None:
         bm = export.build_world_manifest(byzantine_export_root, monolith=s)
         bsg = bm.get("style_genome") or {}

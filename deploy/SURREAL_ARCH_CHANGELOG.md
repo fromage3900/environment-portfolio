@@ -1,5 +1,12 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Inca terrace processional architecture set
+
+- **`inca_terrace_v1`** genome + **`INCA_TERRACE`** grammar chain (6 modules: retaining, ramp, stair, arcade, lintel, fountain)
+- **`INCA_TERRACE`** compose style — pillar corner markers (tower ban); `axis_compression` transform
+- Research study + `inca_terrace_graph` preset + curated playable preset; library bake for ramp/stair/retaining
+- World manifest embed verify; genome catalog **32**; mesoamerican `ROUND`→`ROMAN` hygiene
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)

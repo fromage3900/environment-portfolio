@@ -24,6 +24,7 @@ Structured studies live under [`research/`](../research/README.md) — deploy do
 | Roji sequence | `research/zen/01_roji_sequence.md` |
 | Shrine axis | `research/zen/02_shrine_axis.md` |
 | Karesansui grammar | `research/zen/03_karesansui_grammar.md` |
+| Inca terrace procession | `research/inca/01_terrace_procession.md` |
 | Surreal transforms | `research/surreal/01_non_euclidean_transforms.md` |
 
 ### New kits (v2.74)

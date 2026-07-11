@@ -1,0 +1,23 @@
+{
+  "id": "inca_terrace_v1",
+  "family": "Inca",
+  "verticality": 0.42,
+  "symmetry": 0.78,
+  "ornament_density": 0.28,
+  "structural_logic": 0.92,
+  "organic_growth": 0.18,
+  "cosmic_influence": 0.22,
+  "sacred_sequence": [],
+  "compose_style": "INCA_TERRACE",
+  "default_graph": "INCA_TERRACE",
+  "grammar_id": "INCA_TERRACE",
+  "surreal_transform": "axis_compression",
+  "prop_defaults": {
+    "gb_trim_mode": "RECESS",
+    "retaining_steps": 4,
+    "retaining_batter": 0.1,
+    "archway_style": "LINTEL",
+    "material_choice": "STONE",
+    "unit_size": 2.0
+  }
+}

@@ -1,6 +1,6 @@
 # Surreal Architecture — Loop State
 
-**Version:** 2.131.0  
+**Version:** 2.132.0  
 **Loop sentinel:** `AGENT_LOOP_TICK_surreal_tierb`  
 **Interval:** 300s — **endless loop armed** (monitored shell, AAA genome expansion prompt)
 
@@ -320,9 +320,18 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 
 ## Next loop targets
 
-- Mesoamerican pyramid courtyard (new family)
-- Art Nouveau / Moorish manifest parity audit (compose tests green)
-- Industrial Art Deco hybrid or Streamline Moderne variant
+- Art Deco lobby tower-ban rematerialize (still has TESSELLATION_TOWER/OBELISK)
+- Art Nouveau / Moorish / Renaissance `corner_tower` → PILLAR sweep
+- Mesoamerican full wire (stub present; ROUND→ROMAN fixed)
+- Streamline Moderne / Industrial Art Deco hybrid (horizontal civic)
+
+## Micro-cycle 86 — v2.132.0 (Inca terrace processional set) ✓
+
+- **`inca_terrace_v1`** genome + **`INCA_TERRACE`** grammar (retaining, ramp, stair, arcade, lintel portal, fountain)
+- **`INCA_TERRACE`** compose style — `corner_tower`→PILLAR (tower ban); `axis_compression` transform
+- Research study `research/inca/01_terrace_procession.md` + graph preset + curated playable preset
+- Library bake for RETAINING_WALL / GREYBOX_RAMP / GREYBOX_STAIR_BLOCK; world manifest embed verify
+- Genome catalog **32** (includes meso stub); meso `ROUND`→`ROMAN` hygiene
 
 ## Micro-cycle 85 — v2.131.0 (Art Deco lobby set) ✓
 
