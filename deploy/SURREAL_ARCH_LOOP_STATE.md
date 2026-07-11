@@ -320,9 +320,19 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 
 ## Next loop targets
 
-- Mesoamerican pyramid courtyard (new family)
-- Art Nouveau / Moorish manifest parity audit (compose tests green)
-- Industrial Art Deco hybrid or Streamline Moderne variant
+- Art Deco lobby tower-ban rematerialize (replace TESSELLATION_TOWER / OBELISK)
+- Art Nouveau / Moorish / Renaissance `corner_tower` → PILLAR sweep
+- Mesoamerican full wire (stub present; ROUND→ROMAN fixed)
+- Streamline Moderne / Industrial Art Deco hybrid (horizontal civic)
+
+## Micro-cycle 86 — v2.132.0 (Mughal charbagh set) ✓
+
+- **`mughal_charbagh_v1`** genome + **`MUGHAL_CHARBAGH`** grammar (portal, channel corridor, arcade, ramp, stair, hauz)
+- **`MUGHAL_CHARBAGH`** compose style — `corner_tower` → PILLAR; `axis_compression` transform
+- Research preset `mughal_charbagh_graph` + curated playable preset; tower-ban assert
+- Mesoamerican grammar hygiene: `ARCHWAY_ADV` ROUND→ROMAN
+- OS/overhaul verify factory-startup bootstrap (sys.path import)
+- World manifest embed verify; genome catalog **32**
 
 ## Micro-cycle 85 — v2.131.0 (Art Deco lobby set) ✓
 
