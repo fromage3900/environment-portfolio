@@ -1,6 +1,6 @@
 # Surreal Architecture — Loop State
 
-**Version:** 2.131.0  
+**Version:** 2.132.0  
 **Loop sentinel:** `AGENT_LOOP_TICK_surreal_tierb`  
 **Interval:** 300s — **endless loop armed** (monitored shell, AAA genome expansion prompt)
 
@@ -320,13 +320,13 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 
 ## Next loop targets
 
-- Mesoamerican pyramid courtyard (new family)
-- Art Nouveau / Moorish manifest parity audit (compose tests green)
-- Industrial Art Deco hybrid or Streamline Moderne variant
+- Art Deco lobby tower-ban rematerialize (replace TESSELLATION_TOWER / OBELISK)
+- Art Nouveau / Moorish / Renaissance `corner_tower` → PILLAR sweep
+- Streamline Moderne horizontal civic hybrid
 
-## Micro-cycle 85 — v2.131.0 (Art Deco lobby set) ✓
+## Micro-cycle 86 — v2.132.0 (Mesoamerican pyramid courtyard) ✓
 
-- **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar (tessellation tower, geometric panel wall, chevron filigree, cusped portal, obelisk)
-- **`ART_DECO`** compose style + library bake for **`TESSELLATION_TOWER`**
-- Research preset `art_deco_lobby_graph` + curated playable preset; `vertical_stretch` transform
-- World manifest embed verify; genome catalog **30**
+- **`meso_pyramid_courtyard_v1`** genome + **`MESOAMERICAN_PYRAMID`** grammar (talud, stair, ramp, colonnade, lintel, sacred pool)
+- **`MESOAMERICAN_PYRAMID`** compose style — `corner_tower` → PILLAR; no tower spines
+- Research study `research/mesoamerican/01_pyramid_courtyard.md` + graph preset; `axis_compression`
+- World/OS verify + tower-ban assert; genome catalog **31**
