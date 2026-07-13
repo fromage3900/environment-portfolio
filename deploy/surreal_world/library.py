@@ -32,6 +32,7 @@ SURREAL_LIBRARY_SPEC = {
     "CN_MOON_GATE": {"base_radius": 1.5},
     "CN_TING_PAVILION": {"base_radius": 1.5, "height": 4.0},
     "KR_HANOK": {"teahouse_width": 5.0, "teahouse_depth": 4.0, "teahouse_height": 3.0},
+    "KR_HONG_SAL_MUN": {"base_radius": 1.2, "height": 5.0},
     "JP_KURA_STOREHOUSE": {"base_radius": 1.2, "height": 3.5},
     "OBELISK": {"base_radius": 0.7, "height": 5.0},
     "STREET_LAMP": {"height": 3.5},

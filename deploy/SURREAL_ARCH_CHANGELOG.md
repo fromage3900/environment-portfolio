@@ -1,5 +1,12 @@
 # Surreal Architecture — Changelog
 
+## v2.132.0 — Korean Hanok Madang architecture set
+
+- **`korean_hanok_madang_v1`** genome + **`KOREAN_HANOK_MADANG`** grammar chain (7 modules)
+- **`KOREAN_HANOK_MADANG`** compose style — hongsalmun gate, hanok sacred/large, arcade medium, corner_tower=PILLAR
+- Library bake for **`KR_HONG_SAL_MUN`**; research + curated presets; `axis_compression`
+- World manifest embed verify; genome catalog **32**; OS/overhaul `--factory-startup` bootstrap
+
 ## v2.131.0 — Art Deco lobby architecture set
 
 - **`art_deco_lobby_v1`** genome + **`ART_DECO`** grammar chain (6 modules)

@@ -16,3 +16,5 @@ Before implementing a new generator kit, fill `_template_node_design.md` and lin
 ## Pilot style
 
 **Zen / Japanese** — first full Style Genome (`zen_shrine_v1`).
+
+**Korean** — Hanok madang courtyard (`korean_hanok_madang_v1`).

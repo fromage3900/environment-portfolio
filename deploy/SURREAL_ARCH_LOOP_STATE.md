@@ -1,8 +1,15 @@
 # Surreal Architecture — Loop State
 
-**Version:** 2.131.0  
+**Version:** 2.132.0  
 **Loop sentinel:** `AGENT_LOOP_TICK_surreal_tierb`  
 **Interval:** 300s — **endless loop armed** (monitored shell, AAA genome expansion prompt)
+
+## Micro-cycle 86 — v2.132.0 (Korean Hanok Madang set) ✓
+
+- **`korean_hanok_madang_v1`** genome + **`KOREAN_HANOK_MADANG`** grammar (hongsalmun, lane, hanok, arcade, stair, ramp, fountain)
+- **`KOREAN_HANOK_MADANG`** compose style — `corner_tower` → PILLAR (tower-ban); library bake for **`KR_HONG_SAL_MUN`**
+- Research preset `korean_hanok_madang_graph` + curated playable preset; `axis_compression` transform
+- World manifest embed verify; genome catalog **32**; OS/overhaul factory-startup bootstrap fixed
 
 ## Micro-cycle 53 — genome `family` schema (v2.98.0) ✓
 
@@ -320,9 +327,16 @@ Removed stale `.yaml` genome duplicates — `.json` is sole source of truth for 
 
 ## Next loop targets
 
-- Mesoamerican pyramid courtyard (new family)
-- Art Nouveau / Moorish manifest parity audit (compose tests green)
-- Industrial Art Deco hybrid or Streamline Moderne variant
+- Art Deco lobby tower-ban rematerialize (TESSELLATION_TOWER / OBELISK)
+- Mesoamerican pyramid courtyard full wire (stub present; ROUND→ROMAN)
+- Art Nouveau / Moorish `corner_tower` → PILLAR sweep
+- Streamline Moderne / Industrial Art Deco hybrid (horizontal civic)
+
+## Micro-cycle 86 — v2.132.0 (Korean Hanok Madang set) ✓
+
+- **`korean_hanok_madang_v1`** genome + **`KOREAN_HANOK_MADANG`** grammar (7 modules: hongsalmun → fountain)
+- **`KOREAN_HANOK_MADANG`** compose style + library bake for **`KR_HONG_SAL_MUN`**; `axis_compression`
+- Research preset + curated playable preset; world manifest embed verify; catalog **32**
 
 ## Micro-cycle 85 — v2.131.0 (Art Deco lobby set) ✓
 

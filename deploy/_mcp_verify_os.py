@@ -3,6 +3,7 @@
 Launch with --factory-startup:
   blender --background --factory-startup --python deploy/_mcp_verify_os.py
 """
+import importlib
 import json
 import os
 import sys
@@ -10,19 +11,38 @@ import sys
 import bpy
 
 print("=== SURREAL OS VERIFY ===")
+print("Blender", bpy.app.version_string)
 
 DEPLOY = os.path.dirname(os.path.abspath(__file__))
-if DEPLOY not in sys.path:
-    sys.path.insert(0, DEPLOY)
+LIVE = os.path.join(
+    os.environ.get("APPDATA", ""),
+    "Blender Foundation",
+    "Blender",
+    "5.1",
+    "scripts",
+    "addons",
+)
+for p in (DEPLOY, LIVE):
+    if p and os.path.isdir(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
-s = sys.modules.get("surreal_architecture_gen")
-if s is None:
-    if "surreal_architecture_gen" not in bpy.context.preferences.addons:
-        bpy.ops.preferences.addon_enable(module="surreal_architecture_gen")
-    s = sys.modules.get("surreal_architecture_gen")
-if s is None:
-    print("  !! FAIL: surreal_architecture_gen not loaded")
-    raise SystemExit(1)
+if "surreal_architecture_gen" in bpy.context.preferences.addons:
+    bpy.ops.preferences.addon_disable(module="surreal_architecture_gen")
+
+import surreal_architecture_gen as s
+
+importlib.reload(s)
+if not hasattr(bpy.types.Object, "surreal_arch_props"):
+    s.register()
+
+try:
+    import surreal_arch.integration as _integration
+
+    importlib.reload(_integration)
+    _integration.patch_monolith(s)
+except Exception as e:
+    print(f"Patch monolith skipped: {e}")
+
 if not getattr(s, "_surreal_patched", False):
     print("  !! FAIL: monolith patch (_surreal_patched) not applied")
     raise SystemExit(1)
@@ -47,7 +67,7 @@ from surreal_arch.greybox_graph import GRAPH_REGISTRY
 
 merged = merge_grammar_into_registry(GRAPH_REGISTRY)
 print(f"  merged_into_registry: {merged}")
-for gid in ("ZEN_SHRINE_AXIS", "ZEN_SAKURA_WALK", "ZEN_SHRINE_COURTYARD", "ZEN_ROJI_PATH", "ZEN_KARESANSHUI_WALK", "ZEN_TEA_GARDEN", "ZEN_STREAM_GARDEN", "ZEN_PAGODA_SPIRE", "ZEN_KAIRO_ENCLOSURE", "CLOISTER", "GOTHIC_CHAPTER_HOUSE", "GOTHIC_NAVE_CROSSING", "SCIFI_AIRLOCK", "SCI_FI_DECK", "ROMANESQUE_CLOISTER", "VENETIAN_CANAL", "ROMANESQUE_APSE", "SCI_FI_DECK_EXPANSION", "SCI_FI_INDUSTRIAL_YARD", "ASIAN_CITY", "ASIAN_CITY_RECURSIVE", "BRUTALIST_PLAZA", "ART_NOUVEAU", "ART_DECO", "MOORISH_COURTYARD", "RENAISSANCE_PIAZZA", "BYZANTINE_BASILICA", "BAROQUE_CHURCH"):
+for gid in ("ZEN_SHRINE_AXIS", "ZEN_SAKURA_WALK", "ZEN_SHRINE_COURTYARD", "ZEN_ROJI_PATH", "ZEN_KARESANSHUI_WALK", "ZEN_TEA_GARDEN", "ZEN_STREAM_GARDEN", "ZEN_PAGODA_SPIRE", "ZEN_KAIRO_ENCLOSURE", "CLOISTER", "GOTHIC_CHAPTER_HOUSE", "GOTHIC_NAVE_CROSSING", "SCIFI_AIRLOCK", "SCI_FI_DECK", "ROMANESQUE_CLOISTER", "VENETIAN_CANAL", "ROMANESQUE_APSE", "SCI_FI_DECK_EXPANSION", "SCI_FI_INDUSTRIAL_YARD", "ASIAN_CITY", "ASIAN_CITY_RECURSIVE", "BRUTALIST_PLAZA", "ART_NOUVEAU", "ART_DECO", "MOORISH_COURTYARD", "RENAISSANCE_PIAZZA", "BYZANTINE_BASILICA", "BAROQUE_CHURCH", "KOREAN_HANOK_MADANG"):
     if gid not in GRAPH_REGISTRY:
         print(f"  !! FAIL: {gid} not in GRAPH_REGISTRY")
         all_ok = False
@@ -205,8 +225,8 @@ else:
     print("  scifi_industrial_yard_v1: OK")
 
 genome_ids = os_genome.list_genomes()
-if len(genome_ids) < 29:
-    print(f"  !! FAIL: expected >=29 genomes got {len(genome_ids)}")
+if len(genome_ids) < 31:
+    print(f"  !! FAIL: expected >=31 genomes got {len(genome_ids)}")
     all_ok = False
 else:
     print(f"  genome catalog: {len(genome_ids)} entries")
@@ -312,6 +332,19 @@ try:
     if len(gnc_objs) < 3:
         print(f"  !! FAIL: GOTHIC_NAVE_CROSSING spawn got {len(gnc_objs)}")
         all_ok = False
+    kr_spec = GRAPH_REGISTRY["KOREAN_HANOK_MADANG"]["spec"]
+    kr_objs = spawn_graph(bpy.context, s, kr_spec[:4], spacing=10.0, graph_id="KOREAN_HANOK_MADANG")
+    print(f"  spawn_graph KOREAN_HANOK_MADANG partial: {len(kr_objs)} objects")
+    if len(kr_objs) < 3:
+        print(f"  !! FAIL: KOREAN_HANOK_MADANG spawn got {len(kr_objs)}")
+        all_ok = False
+    banned = {"TOWER", "TESSELLATION_TOWER", "BELL_TOWER", "WATCHTOWER", "OBELISK", "KEEP"}
+    kr_types = {at for at, _ in kr_spec}
+    if banned & kr_types:
+        print(f"  !! FAIL: KOREAN_HANOK_MADANG banned arch types: {banned & kr_types}")
+        all_ok = False
+    else:
+        print("  KOREAN_HANOK_MADANG tower-ban: OK")
     from surreal_arch.research_presets import run_research_preset
     rp = run_research_preset(bpy.context, "gothic_cloister_graph", monolith=s)
     if rp.get("mode") != "graph" or rp.get("count", 0) < 3:
@@ -343,6 +376,12 @@ try:
         all_ok = False
     else:
         print(f"  research_preset byzantine_basilica_graph: {rp4['count']} modules")
+    rp5 = run_research_preset(bpy.context, "korean_hanok_madang_graph", monolith=s)
+    if rp5.get("mode") != "graph" or rp5.get("count", 0) < 4:
+        print(f"  !! FAIL: korean_hanok_madang_graph spawn: {rp5}")
+        all_ok = False
+    else:
+        print(f"  research_preset korean_hanok_madang_graph: {rp5['count']} modules")
     rp5 = run_research_preset(bpy.context, "baroque_church_graph", monolith=s)
     if rp5.get("mode") != "graph" or rp5.get("count", 0) < 4:
         print(f"  !! FAIL: baroque_church_graph spawn: {rp5}")
@@ -676,6 +715,25 @@ elif os_styles.get("VENETIAN_CANAL", {}).get("medium") != "_lib_GB_VENETIAN_LOGG
     all_ok = False
 else:
     print("  venetian_canal_v1 + VENETIAN_CANAL compose_roles: OK")
+
+kr = os_genome.load_genome("korean_hanok_madang_v1")
+if kr.get("compose_style") != "KOREAN_HANOK_MADANG" or os_genome.genome_family(kr) != "Korean":
+    print(f"  !! FAIL: korean_hanok_madang_v1 compose/family")
+    all_ok = False
+elif kr.get("grammar_id") != "KOREAN_HANOK_MADANG":
+    print(f"  !! FAIL: korean_hanok_madang_v1 grammar={kr.get('grammar_id')}")
+    all_ok = False
+elif kr.get("surreal_transform") != "axis_compression":
+    print(f"  !! FAIL: korean transform={kr.get('surreal_transform')}")
+    all_ok = False
+elif os_styles.get("KOREAN_HANOK_MADANG", {}).get("gate") != "_lib_KR_HONG_SAL_MUN":
+    print("  !! FAIL: KOREAN_HANOK_MADANG compose_roles missing")
+    all_ok = False
+elif kr.get("compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+    print(f"  !! FAIL: korean corner_tower={kr.get('compose_roles')}")
+    all_ok = False
+else:
+    print("  korean_hanok_madang_v1 + KOREAN_HANOK_MADANG compose_roles: OK")
 
 if all_ok:
     print("\n=== OS VERIFY OK ===")

@@ -61,6 +61,7 @@ scifi_deck_export_root = None
 scifi_airlock_export_root = None
 scifi_industrial_export_root = None
 zen_pagoda_export_root = None
+korean_export_root = None
 
 print("\n--- Library init ---")
 try:
@@ -235,6 +236,35 @@ try:
         print("  art_deco_compose: OK")
 except Exception as e:
     print(f"  art_deco compose error: {e}")
+    all_ok = False
+
+print("\n--- Korean Hanok Madang plan compose ---")
+try:
+    from surreal_os import genome as os_genome
+    library.init_library(
+        s,
+        types_only={
+            "KR_HANOK",
+            "KR_HONG_SAL_MUN",
+            "GB_ROMANESQUE_ARCADE",
+            "PILLAR",
+            "PUBLIC_FOUNTAIN",
+            "CURTAIN_WALL",
+        },
+    )
+    kr_plan = plans.spawn_village_plan(location=(130, 0, 0))
+    s._active_style_genome = os_genome.load_genome("korean_hanok_madang_v1")
+    kroot, kmsg = compose.compose_world(s, bpy.context, kr_plan, "KOREAN_HANOK_MADANG", 0.85, "COLLECTION")
+    korean_export_root = kroot
+    s._active_style_genome = None
+    print(f"  korean_compose: {kmsg} metrics={verify_hooks.compose_metrics(kroot)}")
+    if kroot.get("surreal_style_genome_id") != "korean_hanok_madang_v1":
+        print(f"  !! FAIL: korean genome stamp got {kroot.get('surreal_style_genome_id')}")
+        all_ok = False
+    else:
+        print("  korean_compose: OK")
+except Exception as e:
+    print(f"  korean compose error: {e}")
     all_ok = False
 
 print("\n--- Moorish courtyard plan compose ---")
@@ -678,6 +708,20 @@ try:
         if dsg.get("resolved_compose_roles", {}).get("gate") != "_lib_CUSPED_ARCH":
             raise RuntimeError("ART_DECO resolved gate mismatch")
         print("  art_deco manifest embed: OK")
+    if korean_export_root is not None:
+        km = export.build_world_manifest(korean_export_root, monolith=s)
+        ksg = km.get("style_genome") or {}
+        if ksg.get("id") != "korean_hanok_madang_v1":
+            raise RuntimeError(f"KOREAN_HANOK_MADANG style_genome expected korean_hanok_madang_v1: {ksg}")
+        if ksg.get("family") != "Korean":
+            raise RuntimeError(f"korean family mismatch: {ksg.get('family')}")
+        if ksg.get("surreal_transform") != "axis_compression":
+            raise RuntimeError("korean surreal_transform mismatch")
+        if ksg.get("resolved_compose_roles", {}).get("gate") != "_lib_KR_HONG_SAL_MUN":
+            raise RuntimeError("KOREAN_HANOK_MADANG resolved gate mismatch")
+        if ksg.get("resolved_compose_roles", {}).get("corner_tower") != "_lib_PILLAR":
+            raise RuntimeError("KOREAN_HANOK_MADANG corner_tower must be PILLAR")
+        print("  korean_hanok_madang manifest embed: OK")
     if moorish_export_root is not None:
         mm = export.build_world_manifest(moorish_export_root, monolith=s)
         msg = mm.get("style_genome") or {}

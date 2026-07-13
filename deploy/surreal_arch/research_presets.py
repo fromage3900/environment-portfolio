@@ -301,6 +301,22 @@ RESEARCH_PRESETS = {
             style_genome_id="art_deco_lobby_v1",
         ),
     },
+    "korean_hanok_madang_graph": {
+        "label": "Korean Hanok Madang",
+        "description": "Hongsalmun gate, offset lane, hanok hall, daecheong arcade, stair, ramp, fountain",
+        "research_ref": "research/korean/01_hanok_madang.md — korean_hanok_madang_v1 + KOREAN_HANOK_MADANG graph",
+        "group": "ASIAN",
+        "graph_id": "KOREAN_HANOK_MADANG",
+        "genome_id": "korean_hanok_madang_v1",
+        "props": dict(
+            arch_type="KR_HONG_SAL_MUN",
+            base_radius=1.2,
+            height=5.0,
+            material_choice="AUTO",
+            unit_size=2.0,
+            style_genome_id="korean_hanok_madang_v1",
+        ),
+    },
     "moorish_courtyard_graph": {
         "label": "Moorish Courtyard Colonnade",
         "description": "Horseshoe portal, arabesque screen, arcade bays, fountain court",
