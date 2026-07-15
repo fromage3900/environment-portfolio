@@ -1,186 +1,81 @@
-# Project Priority Plan
+﻿# Next Highest-Leverage Tasks
 
-## Immediate Next Actions (from NEXT_ACTIONS.md)
-
-# Next Actions - Universal Environment Platform
-
-## Current Priority
-
-Build the generic material/look-dev spine without touching `L_SakuraPath`.
-
-## Recently Completed
-
-- Done: Melodia portfolio components deployed - 7 animated components copied into `my-site/melodia-design-system/wix/`.
-- Done: Professional editorial index page created - full portfolio layout in `wix/index.html`.
-- Done: Deployment manifest updated - v2.0 with component URL inventory.
-- Done: Committed to my-site main - commit `3b420dc` (push still requires GitHub connectivity).
-- Done: Package-to-website handoff adapter added - `Content/Python/package_to_website_handoff.py` converts `Saved/Portfolio/portfolio_package.json` into `_github_deploy/generated/*_config.json`.
-- Done: Material manifest/package refreshed - `material_family_manifest_full.py` handles UTF-8 BOM instance modules; latest package has 30 materials and zero aggregation warnings.
-
-## Queue
-
-1. Push to GitHub when connectivity and approval are available.
-   - Current note from prior agents: local website work is ahead of `origin/main`.
-   - Do not publish externally without explicit approval.
-
-2. Produce generic look-dev capture pass.
-   - Target: `L_Template`, not Sakura.
-   - Capture: showcase material grid, landscape slab, water plane, trimsheet panel.
-
-3. Validate Unreal material-system repairs from Kiro.
-   - Check universal A/B/C layer combinations compile and behave.
-   - Check Nikki landscape scale/normal behavior if `setup_landscape_height_blend.py` is rebuilt.
-   - Check water parameter groups after `setup_master_water.py` changes.
-
-4. Decide whether `my-site-clean/` should replace or supplement `_github_deploy/`.
-   - `my-site-clean/` is currently an untracked clean clone with generated design-system/technical files.
-   - `_github_deploy/` is the active deploy lane used by the Unreal package adapter.
-
-## Completed Pipeline Commands
-
-1. Generate material family manifest.
-   - Command: `python Content/Python/material_family_manifest_full.py`
-   - Output: `Saved/Portfolio/Materials/material_family_manifest.json`
-   - Output: `Saved/Portfolio/MaterialPreviews/previews_manifest.json`
-   - Latest result: 30 materials (`Showcase`: 11, `Zen`: 15, `Baroque`: 4)
-
-2. Aggregate portfolio package.
-   - Command: `python Content/Python/portfolio_aggregator.py`
-   - Output: `Saved/Portfolio/portfolio_package.json`
-   - Latest result: `sections_ok=True`, warnings `0`
-
-3. Build package-to-website handoff.
-   - Command: `python Content/Python/package_to_website_handoff.py`
-   - Input: `Saved/Portfolio/portfolio_package.json`
-   - Output: `_github_deploy/generated/hero_config.json`
-   - Output: `_github_deploy/generated/passport_config.json`
-   - Output: `_github_deploy/generated/portfolio_package_config.json`
-   - Output: `_github_deploy/generated/materials_config.json`
-   - Output: `_github_deploy/generated/renders_config.json`
-   - Output: `_github_deploy/generated/stats_config.json`
-
-4. Add agent memory docs.
-   - `Docs/AgentMemory/Decisions.md`
-   - `Docs/AgentMemory/RejectedIdeas.md`
-   - `Docs/AgentMemory/MaterialStandards.md`
-
-## Portfolio Deployment Status
-
-| Component | Location | Status |
-|-----------|----------|--------|
-| Portfolio index | `wix/index.html` | Committed locally |
-| Cosmic hero | `wix/melodia-hero-cosmic.html` | Committed locally |
-| Navigation | `wix/melodia-navigation-constellation.html` | Committed locally |
-| Project cards | `wix/melodia-project-card.html` | Committed locally |
-| Gallery grid | `wix/melodia-gallery-grid.html` | Committed locally |
-| Breakdown cards | `wix/melodia-breakdown-card.html` | Committed locally |
-| Section headers | `wix/melodia-section-header.html` | Committed locally |
-| Smooth scroll | `wix/melodia-smooth-scroll.html` | Committed locally |
-| Hero embed | `wix/melodia-hero-embed.html` | Committed locally |
-| Passport embed | `wix/melodia-passport-embed.html` | Committed locally |
-| Deployment manifest | `generated/deployment_manifest.json` | Updated locally |
-| Package handoff configs | `_github_deploy/generated/*_config.json` | Generated locally |
-| Push to GitHub | `origin/main` | Requires connectivity and approval |
-
-## Red-Line Constraints
-
-- Do not edit Sakura level content.
-- Do not delete legacy material assets.
-- Do not rewrite master material families.
-- Do not publish externally without explicit approval.
+> Updated 2026-07-14 after Melodia game-systems deep review. Current SSOT for gameplay-system issues: [Docs/MELODIA_GAME_SYSTEMS_DEEP_REVIEW_2026-07-14.md](Docs/MELODIA_GAME_SYSTEMS_DEEP_REVIEW_2026-07-14.md).
+> Previous 2026-07-09 portfolio-capture priorities remain below, but MelodiaCore gameplay correctness is now the highest leverage path for the playable vertical slice.
+> Pipeline hardening SSOT and agent handoff prompt: [Docs/ASSET_PIPELINE_HARDENING_AND_AGENT_PROMPT_2026-07-14.md](Docs/ASSET_PIPELINE_HARDENING_AND_AGENT_PROMPT_2026-07-14.md).
 
 
----
+## Today - 2026-07-14 (Melodia game systems)
 
-## Ranked P0-P3 Leverage Plan (from NEXT_HIGHEST_LEVERAGE_TASK.md)
+These are C++/runtime tasks unless explicitly marked as test/docs. Do not edit `Content/Python/gmm` to "fix" runtime behavior; use it only as parity evidence.
 
-# Next Highest-Leverage Task
+1. **GS-001 - Fix multiplicative modifier stacking.** `UMelodiaCombatStateComponent::EvaluateModifier` must evaluate stacked `mul` modifiers as repeated multiplication/exponentiation, not `Value * Stacks`.
+2. **GS-002 - Respect permanent modifier duration.** `TickModifiers` must keep `duration_turns < 0` modifiers alive.
+3. **GS-003 - Make AV the battle-session turn authority.** Store player/enemy AV, consume `CalculateAVCost`, `Speed` modifiers, and generated delay fractions to decide the next actor.
+4. **GS-004 - Restore ultimate as an interrupt economy.** Ultimate should be fireable during active battle when ready and should not force an enemy turn unless AV says so.
+5. **GS-006 - Fix roguelike run phase/event ordering.** Set `Generating` before broadcasting stage recipe so completion callbacks are not dropped.
+6. **GS-007 - Prove reward -> exit -> next stage.** Clarify `CommitRewardAndAdvance` and prove the two-stage loop in PIE.
+7. **GS-005 - Wire remaining modifier stat hooks.** `UltGain`, `SPGain`, `Speed`, and `RhythmWindow` need real runtime effects or an explicit deferral.
+8. **AssetPassport hardening lane.** Seed one passport each for NPC, room/environment, gameplay asset, and material/VFX; add a no-mutation validator/checklist so agents can scale asset creation without source-of-truth drift.
 
-> 2026-06-25. Derived from [CURRENT_SYSTEM_MAP.md](CURRENT_SYSTEM_MAP.md) + [PORTFOLIO_PIPELINE_AUDIT.md](PORTFOLIO_PIPELINE_AUDIT.md).
-> Constraint honored: no new systems, no redesign. This is the *smallest* change to reach a usable package.
+Acceptance gate: `Melodia.CoreRules.*` automation covers modifier stack semantics and the new AV/ultimate behavior, then a PIE smoke proves victory -> reward -> exit -> second encounter.
 
-## The goal, restated
+> Rewritten 2026-07-09 (post WP-pillar fix, commit `2f64a0f`). Supersedes the 2026-07-09-morning version (capture-spine steps from it that still matter are folded into P0 below).
+> Ranked by (portfolio impact ├ù unblock factor) ├╖ effort. Full long-term plan: [Docs/ECOSYSTEM_UNIFICATION_PLAN.md](Docs/ECOSYSTEM_UNIFICATION_PLAN.md).
 
-```
-Unreal Scene → portfolio_package.json → usable portfolio output
-```
+## Today ΓÇö 2026-07-11 (monetization + site)
 
-The pipeline already produces a schema-valid `portfolio_package.json` on every run. It is just **empty** (5 of 7 sections null). "Usable" = the package carries a real scene name, a real asset list, and a real hero render. We are one capture away from that.
+SSOT: [Docs/MONETIZATION_TODAY_2026-07-11.md](Docs/MONETIZATION_TODAY_2026-07-11.md). **`store_live` stays false** until screenshots + Gumroad.
 
----
+1. **Ornament store screenshots (6)** ΓÇö highest revenue leverage; FBX 15/15 + preview ZIP already on disk.
+2. **Re-pack sell ZIP from current SurrealArch KitbashExport FBXs** ΓÇö preview ZIP is undersized vs live meshes.
+3. **Gumroad create + upload** ΓåÆ then flip `store_live` + gh-pages.
+4. **Website honesty pass** ΓÇö shop gates, Stage passport proof, Props Mini as next SKU (this session).
+5. **Claude songcraft ΓåÆ C++ resolve** ΓÇö core gameplay loop (parallel; not a store SKU).
+6. **Pillar hero captures** ΓÇö still the top *portfolio landscape* lever when the editor is free (P0 below).
 
-## THE task: make one capture run populate the package
+## What changed 2026-07-09 (context for ranking)
 
-### Step 1 — Fix the stale level path (the single highest-leverage line in the repo)
+The four WP pillar levels are now **actually** production-ready ΓÇö WP=true, per-pillar displaced terrain (483ΓÇô685cm relief), PCG verified live: SakuraDream 2015 / SpaceCathedral 642 / BaroqueGrotto 1085 / CosmicOrrery 6171 instances, all saved. Four root-cause bugs fixed (WP detection, `clear_graph_nodes` no-op, SurfaceSampler-on-mesh ΓåÆ MeshSampler variants, squared perlin frequency). `M_Master_Toon_Universal` deep-reviewed: **healthy** ΓÇö the 916ΓåÆ1015 expression growth is 32 gated, default-off feature commits; the "26 broken texture refs" are ~23 validator false positives (TextureObject-pin-fed) + 3 real-but-dormant empty samplers; the duplicate switch trios are benign hygiene debt. MelodiaCore plugin (source-only, unbuilt) was killing every unattended boot ΓÇö disabled in the .uproject.
 
-**File:** `Content/Python/generate_portfolio.py:30`
+## P0 ΓÇö Directly gates the portfolio (Infinity Nikki Aesthetic)
 
-```python
-# before  (asset does not exist → level never loads → all-null capture)
-LEVEL = "/Game/EnvSandbox/Levels/L_SakuraPath"
+1. **Hero captures on the 4 pillars.** Snap `Cam_Hero_Establishing` to real content per level (terrain now has actual relief and scatter aligned with Nikki style genomes like `NikkiFlorawish` and `NikkiStoneville`). Run `render_exporter.py --all-heroes` to capture the dream-palette landscapes, then website ingest (`my-site-clean/tools/ingest_unreal_portfolio.ps1` + `validate_portfolio.ps1`). This is THE task ΓÇö everything else feeds it.
+2. **Reparent `MI_NikkiHero_*`** (scratch master ΓåÆ `M_Master_Toon_Universal`) and **fix `MI_Show_CelestialNebula` BSS texture refs** ΓÇö both appear in pillar hero frames. Verify each via `capture_material_grid`; save with `only_if_is_dirty=False` + disk-timestamp check.
+3. **Verify Melusina Dress/Hair Physics & Alignment:** Spot-test hair mesh (`SK_MelusinaHair`) and skirt collision constraints on `BP_Melusina` within `L_PCGTest_Forest` to verify they respect slope alignment and cozy animation velocity curves.
+4. **Minimal MRQ preset, one pillar, single-frame EXR.** Largest visible quality jump over viewport PNGs; recruiters see this stylized lighting first.
 
-# after   (actual on-disk location)
-LEVEL = "/Game/EnvSandbox/Environments/Sakura/L_SakuraPath"
-```
+## P1 ΓÇö Melodia Studio + GMM foundation
 
-This one edit makes `_load_portfolio_level()` actually load the level, which means `scene_metadata_exporter` scans a populated world → `scene.scene_name`, `scene.level_path`, `scene.engine`, and the whole `assets[]` list populate, and `render_exporter` stamps a real level on the hero plate. **Three sections light up from code that already exists.**
+5. **Lock the shared family contract.** Implement the pure-Python `gmm.family` scaffold, versioned manifest fixture, role/style registry, provenance shape, and schema validator described in [Docs/MELODIA_GMM_FAMILY_ARCHITECTURE_PLAN.md](Docs/MELODIA_GMM_FAMILY_ARCHITECTURE_PLAN.md). This is the highest-leverage bridge between Blender authoring and UE integration.
+6. **Correct and verify the Melodia GN stack.** Fix actual Blender modifier reordering, connect stack `enabled` to modifier visibility, change the stack tab to `Melodia Studio`, then run a Blender 5.1 register/build/export/unregister smoke test.
+7. **Add a dry-run GMM manifest importer.** It must validate units, transforms, roles, style IDs, asset paths, and provenance without mutating Unreal. Use it to establish the first `musical_ornament` vertical slice.
+8. **Verify the Blender ΓåÆ UE handoff.** Export one manifest and world artifact from Melodia Studio, import it in GMM/UE, and compare bounds/counts/material hints in a deterministic test stage. Live Link is optional feedback, not the source of truth.
+9. **Define daemon artifact hygiene.** Separate `_staging/gmm_daemon/` evidence and PID files from source deliverables; every daemon tick must report a real validation gate.
 
-> Why this is the smallest change: every downstream stage (layout, render compiler, aggregator, schema) is already correct. The only thing wrong is that the scan target never loads. Fixing the target is one string.
+## P1 ΓÇö Ecosystem & Styling Hygiene (Phase 1 of the unification plan)
 
-### Step 2 — Harden the level lookup (belt-and-suspenders, ~6 lines)
+5. **Masters/ folder cleanup + retire `M_Master_Toon_Unified` / `M_Master_Simple_Universal`** (reparent instances ΓåÆ verify ΓåÆ archive). 28 assets sit in Masters/, only ~7 are masters; `M_SpaceParallax_Test` is still on disk despite the 07-09 "deleted" changelog claim.
+6. **Decide `M_Master_Toon_Cosmic`** (new 2026-07-09, 12 MI_Cosmic instances): fold into Universal's existing Celestial/DreamPalette family, or explicitly bless it as the Cosmic style master in ECOSYSTEM_UNIFICATION_PLAN. Ambiguity here is exactly how master sprawl restarts.
+7. **Collapse duplicate switch trios** (`bWeather_Active`├ù3, `bCelestialUsesDreamPalette`├ù3 ΓÇö one switch node feeding 3 consumers each) and **fix or delete `TextureSample_0/1/2`** (dormant black-out if `bTriplanar` ever flips on).
+8. **Fix `validate_material` false positives** (skip samples whose TextureObject input pin is connected ΓÇö Monolith C++; remember the Live Coding patch doesn't persist across editor restarts) ΓÇö then re-run the library audit. The standing "72 missing refs" figure predates all of this and must be re-measured before anyone acts on it.
 
-`scene_metadata_exporter._get_level_info()` and `render_exporter._get_level_slug()` use the **deprecated** `unreal.EditorLevelLibrary.get_editor_world()`. The legacy `capture_scene_metadata.py` already uses the modern call. Mirror it so identity capture is robust even if the deprecated path returns `None` in UE 5.8:
+## P2 ΓÇö PCG Library Truthing & Genome Alignment (Phase 2)
 
-```python
-world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
-```
+9. **Graph validation gate** (`Saved/Audit/pcg_graph_health.json`): per graph ΓÇö node-count sanity (no duplicate chains), every spawner has ΓëÑ1 mesh entry, generate-on-test-stage ISM within declared band. Ensure compliance with the 8 Infinity Nikki genome presets in 4 families (`NikkiFlorawish`, `NikkiStoneville`, `NikkiHeartcraft`, `NikkiMirage`).
+10. **Replace greybox scatter meshes role-by-role.** `SCATTER_MESHES.grass` is literally a 1m greybox cube; the 54 migrated prop folders (`Library/Migrated/`) remain 100% unwired. One role at a time with a template-stage visual check.
+11. **Spline-blocked graphs** (~13 + `BalconyEx`/`NaveVaultEx`) via the proven `BP_PathSplineProvider` direct-host pattern.
 
-(Keep the old call as a fallback. `get_all_level_actors()` already uses the modern `EditorActorSubsystem`, so assets populate regardless — this just secures level name/path/engine.)
+## P3 ΓÇö Parked (needs human-at-keyboard or source reading)
 
-### Step 3 — Run it and verify
+- PCGExCreateShapes crash trio (`AtriumEx`/`ColonnadeEx`/`RotundaEx`): in-editor parameter trace; keep quarantined, never batch-generate.
+- PCGEx Collections stagingΓåÆselector contract (needs PCGEx source read) ΓÇö or delete `PCG/Collections/`.
+- Blender surreal-architecture generator ΓåÆ UE world.json/HISM bridge end-to-end verification (biggest untapped scale lever for the cathedral/Escher goal).
+- MeshTerrain actor adoption per pillar (no Python authoring API; in-editor step; GeometryScript seeds are tagged `MeshTerrain_Seed`).
 
-In-editor (recommended; viewport hero works without Monolith):
+## Standing rules (unchanged)
 
-```
-py Content/Python/generate_portfolio.py
-```
-
-**Pass criteria** (`Saved/Portfolio/portfolio_package.json`):
-- `scene.scene_name == "L_SakuraPath"`, `scene.level_path` non-null, `scene.engine` non-null
-- `assets` is a non-empty array
-- `renders.hero[0].level == "L_SakuraPath"` (not `"level"` / null)
-- `metadata.validation_warnings` count drops (scene/asset warnings gone)
-
-That output is the first genuinely **usable** `portfolio_package.json` — enough to drive a real breakdown page.
-
----
-
-## Immediate follow-on (small, independent, bundle if cheap)
-
-These are *not* required for "usable" but are the next cheapest wins, in order:
-
-1. **Light up `materials` (~3 small fixes).** `capture_material_previews.py` is orphaned and broken. Fix it, then add one step to `generate_portfolio.py`:
-   - add `from datetime import datetime, timezone` (its `main()` currently NameErrors);
-   - replace the `endswith((".mat", ".material"))` filter (matches no UE path) with a real material check (e.g. load the asset and test `is_a(unreal.MaterialInterface)`), or scan via the asset registry by class;
-   - wire it into the orchestrator: `step("capture_material_previews", previews.capture_and_write)` between scene metadata and renders.
-   - Result: `materials[]` populates from `MaterialPreviews/previews_manifest.json`.
-
-2. **Connect the package to Figma (the real end-to-end tail).** Nothing consumes `portfolio_package.json` yet. The smallest connector: have `melodia-figma-plugin/code.js` read the package's `scene`/`assets`/`renders` instead of hardcoded tokens (or add a tiny adapter that maps package → the plugin's existing input shape). This closes the loop the project goal actually describes.
-
-3. **Stats exporter (new producer, larger).** Write `portfolio_stats_manifest.json` (`triangle_count`, `draw_calls`, instance counts). The schema slot and aggregator mapper already exist; only the producer is missing. Defer until 1–2 land.
-
----
-
-## Explicitly out of scope (do NOT do now)
-
-- ❌ Rewriting the aggregator, schema, or layout manager — they are production-ready.
-- ❌ Building the Monolith material-grid / overlay / trim capture suite — skips by default; unblock the spine first.
-- ❌ The advanced gaps in `UNREAL_CAPTURE_GAPS.md` / `UNMAPPED_DATA_POINTS.md` (G-buffer passes, LOD metrics, UDS params, audio bands) — backlog, wrong altitude until the package carries basic data.
-- ❌ Merging the duplicate scene scanner — nice cleanup, not blocking; do it opportunistically when touching Step 2.
-
----
-
-## One-line answer
-
-**Change `LEVEL` in `generate_portfolio.py:30` to `/Game/EnvSandbox/Environments/Sakura/L_SakuraPath` and re-run the pipeline in-editor.** That single fix converts the all-null package into a real scene + asset list + hero render — the smallest possible step from "pipeline runs" to "portfolio is usable."
-
+- `L_SakuraPath` art pass is human-owned. No lights/cameras spawned or screenshots taken in user levels ΓÇö data verification only.
+- No force-push of `main` (244-commit local/remote divergence).
+- Kick + verify in **separate calls** for all async editor work; honest pass criteria (assert targets, not step completion) everywhere.
+- Treat every aesthetic update with a whimsical, cozy, stylized-gameplay mindset (the "Infinity Nikki" developer discipline).
