@@ -27,62 +27,70 @@ BLENDER_OSC_PORT = 9000
 SENTINEL_PATH = os.path.join(PROJECT_ROOT, r"BS_GodFile\Saved\Audit\AGENT_LOOP_TICK_td_orch")
 OSC_ROUTING_PATH = os.path.join(PROJECT_ROOT, r"BS_GodFile\deploy\osc_routing.json")
 
-# ── Nikki Style Presets ─────────────────────────────────────────────────
+# ── Nikki Style Presets (MPC-mapped parameter names) ────────────────────
+# Each preset is a 12-float array mapped to UE MPC parameters:
+#   [0] bloom_intensity  -> MPC_Magical.BloomIntensity
+#   [1] bloom_threshold  -> Post-process threshold
+#   [2] sparkle_pulse    -> MPC_SakuraDream.SparklePulse
+#   [3] dream_intensity  -> MPC_SakuraDream.DreamIntensity
+#   [4] wind_strength    -> MPC_SakuraDream.WindStrength
+#   [5] global_opacity   -> MPC_SakuraDream.GlobalOpacity
+#   [6] shadow_tint_r    -> Post-process shadow tint
+#   [7] shadow_tint_b    -> Post-process shadow tint
+#   [8] magical_transform-> MPC_Magical.MagicalTransform
+#   [9] saturation       -> Post-process saturation
+#  [10] diffuse_wrap     -> Material wrap
+#  [11] sparkle_vis      -> MPC_SakuraDream.SparkleVisibility
 STYLE_PRESETS = {
     0: {
         "name": "Nikki",
         "description": "Soft dreamy pastel, heavy bloom, warm golden hour",
-        "bloom_intensity": 5.0,
-        "bloom_threshold": 0.75,
-        "bloom_tint": (1.0, 0.96, 0.94),
-        "shadow_tint": (0.21, 0.18, 0.25),
-        "saturation": 0.9,
-        "contrast": 0.88,
-        "diffuse_wrap": 0.5,
+        "bloom_intensity": 5.0, "bloom_threshold": 0.75,
+        "sparkle_pulse": 0.8, "dream_intensity": 0.7,
+        "wind_strength": 0.4, "global_opacity": 0.9,
+        "shadow_tint_r": 0.21, "shadow_tint_b": 0.25,
+        "magical_transform": 0.25, "saturation": 0.9,
+        "diffuse_wrap": 0.5, "sparkle_vis": 0.8,
     },
     1: {
         "name": "Madoka",
         "description": "Witch barrier surreal, saturated, collage-like",
-        "bloom_intensity": 3.0,
-        "bloom_threshold": 0.85,
-        "bloom_tint": (0.9, 0.7, 1.0),
-        "shadow_tint": (0.15, 0.10, 0.25),
-        "saturation": 1.2,
-        "contrast": 1.05,
-        "diffuse_wrap": 0.3,
+        "bloom_intensity": 3.0, "bloom_threshold": 0.85,
+        "sparkle_pulse": 1.0, "dream_intensity": 0.5,
+        "wind_strength": 0.3, "global_opacity": 1.0,
+        "shadow_tint_r": 0.15, "shadow_tint_b": 0.25,
+        "magical_transform": 0.60, "saturation": 1.2,
+        "diffuse_wrap": 0.3, "sparkle_vis": 1.0,
     },
     2: {
         "name": "Celestial",
         "description": "Space nebula, cool tones, deep astral",
-        "bloom_intensity": 4.0,
-        "bloom_threshold": 0.80,
-        "bloom_tint": (0.7, 0.8, 1.0),
-        "shadow_tint": (0.08, 0.10, 0.19),
-        "saturation": 0.85,
-        "contrast": 0.95,
-        "diffuse_wrap": 0.4,
+        "bloom_intensity": 4.0, "bloom_threshold": 0.80,
+        "sparkle_pulse": 0.5, "dream_intensity": 0.3,
+        "wind_strength": 0.2, "global_opacity": 0.7,
+        "shadow_tint_r": 0.08, "shadow_tint_b": 0.19,
+        "magical_transform": 0.40, "saturation": 0.85,
+        "diffuse_wrap": 0.4, "sparkle_vis": 0.5,
     },
     3: {
         "name": "Itto",
         "description": "Mythic carved stone, warm ochre, dramatic",
-        "bloom_intensity": 2.5,
-        "bloom_threshold": 0.90,
-        "bloom_tint": (1.0, 0.85, 0.60),
-        "shadow_tint": (0.12, 0.08, 0.06),
-        "saturation": 0.75,
-        "contrast": 1.10,
-        "diffuse_wrap": 0.6,
+        "bloom_intensity": 2.5, "bloom_threshold": 0.90,
+        "sparkle_pulse": 0.3, "dream_intensity": 0.4,
+        "wind_strength": 0.5, "global_opacity": 0.6,
+        "shadow_tint_r": 0.12, "shadow_tint_b": 0.06,
+        "magical_transform": 0.10, "saturation": 0.75,
+        "diffuse_wrap": 0.6, "sparkle_vis": 0.3,
     },
     4: {
         "name": "Sakura",
         "description": "Japanese pink, delicate, cherry blossom",
-        "bloom_intensity": 4.5,
-        "bloom_threshold": 0.78,
-        "bloom_tint": (1.0, 0.90, 0.92),
-        "shadow_tint": (0.18, 0.12, 0.20),
-        "saturation": 0.95,
-        "contrast": 0.90,
-        "diffuse_wrap": 0.55,
+        "bloom_intensity": 4.5, "bloom_threshold": 0.78,
+        "sparkle_pulse": 0.9, "dream_intensity": 0.6,
+        "wind_strength": 0.5, "global_opacity": 0.95,
+        "shadow_tint_r": 0.18, "shadow_tint_b": 0.20,
+        "magical_transform": 0.30, "saturation": 0.95,
+        "diffuse_wrap": 0.55, "sparkle_vis": 0.9,
     },
 }
 
@@ -234,20 +242,20 @@ def td_tick(melusina_pitch=440.0, melusina_amp=0.5, style_preset=0, day_cycle=0.
     preset_route = routes["material"]["style_preset"]["path"]
     messages.append((preset_route, (int(style_preset),)))
 
-    # Toon parameters (12 floats: bloom, shadow, wrap, saturation, etc.)
+    # Toon parameters (12 floats mapped to UE MPCs)
     toon_params = [
         preset["bloom_intensity"],
         preset["bloom_threshold"],
-        preset["bloom_tint"][0],
-        preset["bloom_tint"][1],
-        preset["bloom_tint"][2],
-        preset["shadow_tint"][0],
-        preset["shadow_tint"][1],
-        preset["shadow_tint"][2],
+        preset["sparkle_pulse"],
+        preset["dream_intensity"],
+        preset["wind_strength"],
+        preset["global_opacity"],
+        preset["shadow_tint_r"],
+        preset["shadow_tint_b"],
+        preset["magical_transform"],
         preset["saturation"],
-        preset["contrast"],
         preset["diffuse_wrap"],
-        0.0,  # reserved
+        preset["sparkle_vis"],
     ]
     toon_route = routes["material"]["toon_params"]["path"]
     messages.append((toon_route, tuple(toon_params)))
