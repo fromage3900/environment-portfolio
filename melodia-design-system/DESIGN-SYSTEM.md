@@ -83,11 +83,13 @@ Two-tier model: **primitives** (raw palette, never used directly in designs) →
 
 ### 2.1 Primitive palette
 
+> **Portfolio lookbook Light = gilded ivory (2026-07-15 SSOT).** Live site polish (`melodia-editorial-polish.css`) and Figma Grandmaster Light primitives use warmer parchment for recruiter/lookbook surfaces — not the cooler print paper below this note's historical names. Print/ArtStation breakouts may still read cooler; web lookbook must match these warmer hexes. Dark / `astral/*` values are unchanged.
+
 | Token | Hex | Note |
 |---|---|---|
-| `ivory/50` | `#FCFBF8` | **Moonlight White** — purest surface |
-| `ivory/100` | `#F7F4EF` | **Ivory** — default paper |
-| `ivory/200` | `#EFEAE1` | sunken / subtle fill |
+| `ivory/50` | `#FFF8EE` | **Gilded Moonlight** — purest lookbook surface (was `#FCFBF8` cool print) |
+| `ivory/100` | `#F8ECD6` | **Gilded Ivory** — default lookbook paper (was `#F7F4EF`) |
+| `ivory/200` | `#F3E6C8` | sunken / parchment fill (was `#EFEAE1`) |
 | `ivory/300` | `#E3DACE` | hairline on ivory |
 | `plum/500` | `#6E6080` | muted plum (disabled, faint) |
 | `plum/600` | `#463A54` | plum mid |
@@ -165,14 +167,15 @@ Two-tier model: **primitives** (raw palette, never used directly in designs) →
 
 Three roles. Recommended stack uses **free, high-quality Google Fonts** so the system is shareable; premium upgrades listed for when budget allows.
 
-| Role | Recommended (free) | Premium upgrade | Why |
+| Role | Portfolio UI SSOT (live site) | Print / legacy Figma text styles | Why |
 |---|---|---|---|
-| **Display / Titles** | **Fraunces** (variable; high optical contrast, "Soft" + low-`opsz` for elegance) | Canela, Ogg, Reckless | Editorial serif with a literary, artbook feel; variable axes give XL drama |
-| **Cover / Hero caps** *(optional)* | **Cinzel** | Trajan Pro, Friedrich | Engraved Roman capitals — the HoYoverse "celestial title" feel for covers, end-cards, the wordmark |
-| **Body / UI** | **Inter** | Söhne, Suisse Int'l | Neutral neo-grotesque; superb legibility at all sizes |
-| **Technical / Metadata** | **IBM Plex Mono** | Söhne Mono, GT America Mono | Monospace signals engineering credibility; aligns numeric specs |
+| **Brand / UI caps** | **Syne** | — | Live portfolio identity; do not substitute Inter for recruiter UI |
+| **Display / Titles** | **Instrument Serif** | Fraunces (doc samples only) | Editorial serif for heroes and passports |
+| **Body / UI** | **Bricolage Grotesque** | Inter (doc samples only) | Lookbook body and cards |
+| **Technical / Metadata** | **Azeret Mono** | IBM Plex Mono (doc samples only) | Specs, passport rows, dividers |
+| **Cover / Hero caps** *(optional)* | **Cinzel** | Cinzel | Engraved wordmark / cover titles only |
 
-Pairing logic: a **high-contrast serif** (warmth, craft) + a **neutral sans** (clarity) + a **mono** (technical authority), with **Cinzel** reserved for the wordmark and cover titles to give the HoYoverse engraved-celestial signature. This is the typographic fingerprint of the brand — keep it fixed.
+**Portfolio type SSOT:** Syne / Instrument Serif / Bricolage Grotesque / Azeret Mono (`melodia-luxury-type.css` + Figma page 02 live samples). Do **not** restyle portfolio lookbook UI to Fraunces/Inter. Pairing logic stays high-contrast serif + characterful sans + mono; Cinzel remains wordmark-only.
 
 ### 3.2 Type scale
 
@@ -527,7 +530,7 @@ Build foundations → tokens → components → patterns → layouts. Do not jum
 
 1. **File + pages.** Create the 7 pages (§8.1). Add `00 Cover`. *(Plugin does this.)*
 2. **Variables.** Create `Color` (Light+Dark modes), `Spacing`, `Radius` collections from §2/§4. *(Plugin + `tokens.json`.)*
-3. **Text styles.** Create all §3.2 styles. Load Fraunces / Inter / IBM Plex Mono first. *(Plugin.)*
+3. **Text styles.** Create §3.2 styles. For **portfolio UI**, load Syne / Instrument Serif / Bricolage / Azeret first; Fraunces / Inter / IBM Plex Mono only for print-doc samples. *(Plugin.)*
 4. **Effects.** Create `shadow/sm`, `shadow/md`.
 5. **Motif primitives.** `Star/8pt` (signature), `Star/4pt`, `Constellation`, `Frame/Corner`, `Brand/Mark` lockups (Cinzel wordmark + ✸). Draw once, componentize.
 6. **Atoms.** `Row/Spec`, `Divider/Section`, `Icon/Software/*`.
@@ -566,7 +569,7 @@ The system *is* the brand. **Name: Melodia** (*melody + celestial* — composed,
 - **A signature gesture:** the **gold ✸ + hairline rule** kicker above every section title. Cheap to apply, instantly recognizable.
 - **Two-world identity.** *Light = Ivory editorial colophon* (galleries, print, web) and *Dark = Astral Night* (HoYoverse-grade ArtStation covers / splash). Same system, two moods — lead with Astral Night for hero pieces.
 - **Own a color memory.** Champagne gold + midnight plum on ivory, and luminous gold + iris on astral blue, are the palettes people will remember; resist trendier hues.
-- **Tri-voice type as identity.** Fraunces + Inter + IBM Plex Mono (with Cinzel for the wordmark) is a recognizable typographic fingerprint; keep it fixed.
+- **Tri-voice type as identity.** Portfolio UI SSOT = Syne + Instrument Serif + Bricolage + Azeret (Cinzel for the wordmark). Fraunces/Inter/IBM Plex remain print-doc legacy only — keep portfolio lookbook fixed to the live stack.
 - **Consistent surfaces:** ArtStation cover, website hero, PDF breakdowns, and social posts all use the same templates + Passport → cross-platform cohesion.
 - **Social system:** a square (1080) and portrait (1080×1350) template variant carrying the Passport + one beauty shot; a story (1080×1920) variant with the Astral Night wordmark end-card.
 - **Watermark, lightly.** A 6%-opacity ✸ or constellation in a consistent corner of beauty shots.
